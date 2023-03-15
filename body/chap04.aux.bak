@@ -1,0 +1,235 @@
+\relax 
+\citation{yu2017finding,su2021efficient,YinShoujun2019}
+\citation{su2020time,dong2020improved,xie2019fast}
+\citation{gong2017efficient,liu2015sampling}
+\citation{chen2018using,fu2017fast,zhu2016efficient}
+\citation{guo2021priority}
+\citation{lin2021fast,shahzad2015expecting,chen2017efficient}
+\citation{liu2014efficient}
+\citation{liu2014unknown}
+\@writefile{loa}{\addvspace {10\p@ }}
+\FN@pp@footnotehinttrue 
+\@writefile{toc}{\contentsline {chapter}{\numberline {5}大型RFID系统中未知标签的快速可靠识别}{73}{chapter.5}}
+\@writefile{lof}{\addvspace {10\p@ }}
+\@writefile{lot}{\addvspace {10\p@ }}
+\@writefile{toe}{\contentsline {chapter}{\numberline {5}Unknown Tag Identification in RFID system}{73}{chapter.5}}
+\newlabel{chap03}{{5}{73}{大型RFID系统中未知标签的快速可靠识别\relax }{chapter.5}{}}
+\citation{xie2019fast}
+\@writefile{lof}{\contentsline {figure}{\numberline {5.1}{\ignorespaces 含有未知标签的RFID系统模型}}{74}{subsection.5.1.2}}
+\newlabel{UnknownTags111}{{5.1}{74}{系统模型\relax }{subsection.5.1.2}{}}
+\@writefile{toc}{\contentsline {section}{\numberline {5.1}问题定义与系统模型}{74}{section.5.1}}
+\newlabel{problem_definition_dts}{{5.1}{74}{问题定义与系统模型\relax }{section.5.1}{}}
+\@writefile{toe}{\contentsline {section}{\numberline {5.1}Problem Definition}{74}{section.5.1}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {5.1.1}问题描述}{74}{subsection.5.1.1}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {5.1.2}系统模型}{74}{subsection.5.1.2}}
+\citation{guo2021priority,fu2017fast,chen2018using,su2020partitioning,wang2021time}
+\citation{liu2020fast,gong2017efficient,liu2015sampling}
+\citation{su2020partitioning,qian2016tip,zhu2017efficient}
+\citation{guo2021priority}
+\citation{fu2017fast}
+\citation{chen2018using}
+\citation{su2020time}
+\citation{dong2020improved}
+\citation{xie2019fast}
+\@writefile{lof}{\contentsline {figure}{\numberline {5.2}{\ignorespaces DFSA中阅读器的操作}}{75}{subsection.5.2.1}}
+\newlabel{DFSA}{{5.2}{75}{相关工作\relax }{subsection.5.2.1}{}}
+\@writefile{toc}{\contentsline {section}{\numberline {5.2}现有方案及其不足}{75}{section.5.2}}
+\newlabel{PriorArtlimitation_dts}{{5.2}{75}{现有方案及其不足\relax }{section.5.2}{}}
+\@writefile{toe}{\contentsline {section}{\numberline {5.2}Existing Art and Limitation}{75}{section.5.2}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {5.2.1}相关工作}{75}{subsection.5.2.1}}
+\@writefile{toe}{\contentsline {subsection}{\numberline {5.2.1}Related Work}{75}{subsection.5.2.1}}
+\citation{liu2020fast}
+\citation{gong2017efficient}
+\citation{liu2015sampling}
+\citation{chen2018using}
+\citation{fu2017fast}
+\citation{zhu2016efficient}
+\citation{liu2014efficient}
+\citation{liu2014unknown}
+\citation{qian2016tip}
+\citation{epcc1g2}
+\citation{cha2006dynamic}
+\citation{zhu2016efficient}
+\citation{liu2014efficient}
+\citation{liu2014unknown}
+\@writefile{toc}{\contentsline {subsection}{\numberline {5.2.2}主要挑战}{77}{subsection.5.2.2}}
+\@writefile{toe}{\contentsline {subsection}{\numberline {5.2.2}Challenge Issues}{77}{subsection.5.2.2}}
+\@writefile{toc}{\contentsline {section}{\numberline {5.3}阅读器与标签通信的C1G2标准简介}{77}{section.5.3}}
+\@writefile{toe}{\contentsline {section}{\numberline {5.3}Background of C1G2 Specification}{77}{section.5.3}}
+\citation{epcc1g2}
+\@writefile{lot}{\contentsline {table}{\numberline {5.1}{\ignorespaces 基于C1G2的仿真参数设定}}{78}{equation.5.3.3}}
+\newlabel{tab:C1G2}{{5.1}{78}{阅读器与标签通信的C1G2标准简介\relax }{equation.5.3.3}{}}
+\newlabel{Prob_DetectASingleMissingTag}{{5.1}{78}{阅读器与标签通信的C1G2标准简介\relax }{equation.5.3.1}{}}
+\newlabel{Prob_DetectASingleMissingTag}{{5.2}{78}{阅读器与标签通信的C1G2标准简介\relax }{equation.5.3.2}{}}
+\newlabel{Prob_DetectASingleMissingTag}{{5.3}{78}{阅读器与标签通信的C1G2标准简介\relax }{equation.5.3.3}{}}
+\citation{epcc1g2}
+\citation{epcc1g2}
+\@writefile{lot}{\contentsline {table}{\numberline {5.2}{\ignorespaces 主要符号及其注释}}{79}{table.5.1}}
+\newlabel{tab:annotations}{{5.2}{79}{阅读器与标签通信的C1G2标准简介\relax }{table.5.1}{}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {5.3.1}C1G2标准背景简介}{79}{subsection.5.3.1}}
+\@writefile{lot}{\contentsline {table}{\numberline {5.3}{\ignorespaces \texttt  {Select}命令的结构}}{80}{Item.13}}
+\newlabel{tab:select}{{5.3}{80}{C1G2标准背景简介\relax }{Item.13}{}}
+\@writefile{lot}{\contentsline {table}{\numberline {5.4}{\ignorespaces \texttt  {Kill} 命令的结构}}{81}{Item.15}}
+\newlabel{tab:Kill}{{5.4}{81}{C1G2标准背景简介\relax }{Item.15}{}}
+\@writefile{lof}{\contentsline {figure}{\numberline {5.3}{\ignorespaces 标准ALOHA协议与CRM协议的对比}}{81}{section.5.4}}
+\newlabel{CRM}{{5.3}{81}{CRM协议设计\relax }{section.5.4}{}}
+\@writefile{lof}{\contentsline {figure}{\numberline {5.4}{\ignorespaces CRM协议的执行流程}}{82}{figure.5.3}}
+\newlabel{PCRM1}{{5.4}{82}{CRM协议设计\relax }{figure.5.3}{}}
+\@writefile{toc}{\contentsline {section}{\numberline {5.4}CRM协议设计}{82}{section.5.4}}
+\newlabel{CRM_protocol}{{5.4}{82}{CRM协议设计\relax }{section.5.4}{}}
+\@writefile{toe}{\contentsline {section}{\numberline {5.4}The Design of Tag CRM}{82}{section.5.4}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {5.4.1}V-RNx的设计与引入}{83}{subsection.5.4.1}}
+\@writefile{toe}{\contentsline {subsection}{\numberline {5.4.1}Slot-index reservation}{83}{subsection.5.4.1}}
+\newlabel{CRMAloha}{{5.4}{83}{V-RNx的设计与引入\relax }{equation.5.4.4}{}}
+\@writefile{lof}{\contentsline {figure}{\numberline {5.5}{\ignorespaces 区分码甄别未知标签}}{84}{subsection.5.4.3}}
+\newlabel{CRMAloha22}{{5.5}{84}{未知标签识别\relax }{subsection.5.4.3}{}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {5.4.2}已知标签时隙选择和区分位预测}{84}{subsection.5.4.2}}
+\@writefile{toe}{\contentsline {subsection}{\numberline {5.4.2}Tag Identification}{84}{subsection.5.4.2}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {5.4.3}未知标签识别}{84}{subsection.5.4.3}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {5.4.4}已知标签灭活}{86}{subsection.5.4.4}}
+\@writefile{toc}{\contentsline {section}{\numberline {5.5}参数优化}{86}{section.5.5}}
+\@writefile{toe}{\contentsline {section}{\numberline {5.5}Multi-category Tag Cardinality Estimation}{86}{section.5.5}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {5.5.1}优化参数$k$的优化}{86}{subsection.5.5.1}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {5.5.2}优化哈希种子数量$\lambda $以及帧长$f$}{86}{subsection.5.5.2}}
+\newlabel{p_f}{{5.5}{87}{优化哈希种子数量$\lambda $以及帧长$f$\relax }{equation.5.5.5}{}}
+\newlabel{p_\lambda }{{5.6}{87}{优化哈希种子数量$\lambda $以及帧长$f$\relax }{equation.5.5.6}{}}
+\newlabel{p_1}{{5.7}{87}{优化哈希种子数量$\lambda $以及帧长$f$\relax }{equation.5.5.7}{}}
+\newlabel{p_3}{{5.8}{87}{优化哈希种子数量$\lambda $以及帧长$f$\relax }{equation.5.5.8}{}}
+\newlabel{Prob_DetectASingleMissingTag}{{5.9}{87}{优化哈希种子数量$\lambda $以及帧长$f$\relax }{equation.5.5.9}{}}
+\newlabel{p_4}{{5.10}{87}{优化哈希种子数量$\lambda $以及帧长$f$\relax }{equation.5.5.10}{}}
+\newlabel{Prob_DetectASingleMissingTag}{{5.11}{88}{优化哈希种子数量$\lambda $以及帧长$f$\relax }{equation.5.5.11}{}}
+\newlabel{Prob_DetectASingleMissingTag}{{5.12}{88}{优化哈希种子数量$\lambda $以及帧长$f$\relax }{equation.5.5.12}{}}
+\newlabel{Prob_DetectASingleMissingTag}{{5.13}{88}{优化哈希种子数量$\lambda $以及帧长$f$\relax }{equation.5.5.13}{}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {5.5.3}优化广播帧长度}{88}{subsection.5.5.3}}
+\@writefile{toe}{\contentsline {subsection}{\numberline {5.5.3}The Optimization of Broadcasted Frame Size}{88}{subsection.5.5.3}}
+\@writefile{lof}{\contentsline {figure}{\numberline {5.6}{\ignorespaces DTS 系统主要硬件组成部分}}{89}{equation.5.5.16}}
+\newlabel{fig:sketch-dts}{{5.6}{89}{优化广播帧长度\relax }{equation.5.5.16}{}}
+\newlabel{c4_eq_constraint_vmtd}{{5.15}{89}{优化广播帧长度\relax }{equation.5.5.15}{}}
+\newlabel{c4_eq_missingnum}{{5.16}{89}{优化广播帧长度\relax }{equation.5.5.16}{}}
+\citation{epcc1g2}
+\@writefile{lof}{\contentsline {figure}{\numberline {5.7}{\ignorespaces DTS 系统主要硬件组成部分}}{90}{section.5.6}}
+\newlabel{fig:Possession}{{5.7}{90}{协议性能评估\relax }{section.5.6}{}}
+\@writefile{lof}{\contentsline {figure}{\numberline {5.8}{\ignorespaces DTS 系统主要硬件组成部分}}{90}{figure.5.7}}
+\newlabel{fig:EachPriority}{{5.8}{90}{协议性能评估\relax }{figure.5.7}{}}
+\@writefile{toc}{\contentsline {section}{\numberline {5.6}协议性能评估}{90}{section.5.6}}
+\newlabel{performanceEvaluation_dts}{{5.6}{90}{协议性能评估\relax }{section.5.6}{}}
+\@writefile{toe}{\contentsline {section}{\numberline {5.6}Performance Evaluation}{90}{section.5.6}}
+\citation{speedwayr420}
+\citation{octane}
+\@writefile{lof}{\contentsline {figure}{\numberline {5.9}{\ignorespaces DTS 系统主要硬件组成部分}}{91}{figure.5.8}}
+\newlabel{fig:slotsneeds}{{5.9}{91}{协议性能评估\relax }{figure.5.8}{}}
+\@writefile{lof}{\contentsline {figure}{\numberline {5.10}{\ignorespaces 原型系统架构}}{91}{subsection.5.6.1}}
+\newlabel{fig:arch-dts}{{5.10}{91}{原型实现\relax }{subsection.5.6.1}{}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {5.6.1}原型实现}{91}{subsection.5.6.1}}
+\@writefile{toe}{\contentsline {subsection}{\numberline {5.6.1}Prototype Implementation}{91}{subsection.5.6.1}}
+\citation{speedwayr420}
+\citation{monza4}
+\@writefile{lof}{\contentsline {figure}{\numberline {5.11}{\ignorespaces 采样概率测量值与分配值的关系}}{92}{figure.5.10}}
+\newlabel{fig:mpvsap}{{5.11}{92}{原型实现\relax }{figure.5.10}{}}
+\@writefile{lof}{\contentsline {figure}{\numberline {5.12}{\ignorespaces 识别间隔vs.采样概率分配值}}{92}{figure.5.11}}
+\newlabel{fig:reading}{{5.12}{92}{原型实现\relax }{figure.5.11}{}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {5.6.2}DTS正确性验证}{92}{subsection.5.6.2}}
+\@writefile{toe}{\contentsline {subsection}{\numberline {5.6.2}Validate the Effectiveness of DTS}{92}{subsection.5.6.2}}
+\citation{antenna}
+\@writefile{lot}{\contentsline {table}{\numberline {5.5}{\ignorespaces 距离对分配操作成功率的影响}}{93}{subsection.5.6.2}}
+\newlabel{tab:successful}{{5.5}{93}{DTS正确性验证\relax }{subsection.5.6.2}{}}
+\@writefile{lof}{\contentsline {figure}{\numberline {5.13}{\ignorespaces 平均每个标签的识别时间}}{94}{table.5.5}}
+\newlabel{fig:avtime}{{5.13}{94}{DTS正确性验证\relax }{table.5.5}{}}
+\@writefile{lof}{\contentsline {figure}{\numberline {5.14}{\ignorespaces 标签密集部署场景下的识别时间}}{94}{figure.5.13}}
+\newlabel{fig:dense-time}{{5.14}{94}{DTS正确性验证\relax }{figure.5.13}{}}
+\@writefile{lof}{\contentsline {figure}{\numberline {5.15}{\ignorespaces 标签识别速率vs.地点}}{95}{figure.5.14}}
+\newlabel{fig:time-locations}{{5.15}{95}{DTS正确性验证\relax }{figure.5.14}{}}
+\@writefile{lof}{\contentsline {figure}{\numberline {5.16}{\ignorespaces 识别率vs.距离}}{95}{figure.5.15}}
+\newlabel{fig:couping}{{5.16}{95}{DTS正确性验证\relax }{figure.5.15}{}}
+\@writefile{lof}{\contentsline {figure}{\numberline {5.17}{\ignorespaces 100 个标签的密集部署场景}}{95}{figure.5.16}}
+\newlabel{fig:densedeploy}{{5.17}{95}{DTS正确性验证\relax }{figure.5.16}{}}
+\citation{WeiGongMobihoc13,Yue2014,ZhengInfocom13ZOE}
+\citation{xarray}
+\citation{speedwayr420}
+\@writefile{lof}{\contentsline {figure}{\numberline {5.18}{\ignorespaces 估计结果的均值}}{97}{figure.5.17}}
+\newlabel{fig:mensimu1000}{{5.18}{97}{DTS正确性验证\relax }{figure.5.17}{}}
+\@writefile{lof}{\contentsline {figure}{\numberline {5.19}{\ignorespaces 估计结果的方差}}{97}{figure.5.18}}
+\newlabel{fig:varsimu}{{5.19}{97}{DTS正确性验证\relax }{figure.5.18}{}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {5.6.3}多类别标签数量估计/基于价值的丢失标签检测问题评估}{97}{subsection.5.6.3}}
+\@writefile{toe}{\contentsline {subsection}{\numberline {5.6.3}Evaluate MTCE/VMTD}{97}{subsection.5.6.3}}
+\@writefile{lof}{\contentsline {figure}{\numberline {5.20}{\ignorespaces 100轮估计结果}}{98}{subsection.5.6.3}}
+\newlabel{fig:mensimu200}{{5.20}{98}{多类别标签数量估计/基于价值的丢失标签检测问题评估\relax }{subsection.5.6.3}{}}
+\@writefile{lof}{\contentsline {figure}{\numberline {5.21}{\ignorespaces 采样概率与标签数量的关系}}{98}{figure.5.20}}
+\newlabel{fig:numvsprob}{{5.21}{98}{多类别标签数量估计/基于价值的丢失标签检测问题评估\relax }{figure.5.20}{}}
+\@writefile{lof}{\contentsline {figure}{\numberline {5.22}{\ignorespaces 估计时间与标签数量的关系}}{98}{figure.5.21}}
+\newlabel{fig:timecompare}{{5.22}{98}{多类别标签数量估计/基于价值的丢失标签检测问题评估\relax }{figure.5.21}{}}
+\@writefile{lof}{\contentsline {figure}{\numberline {5.23}{\ignorespaces 估计结果与识别失败率的关系}}{98}{figure.5.22}}
+\newlabel{fig:accerror}{{5.23}{98}{多类别标签数量估计/基于价值的丢失标签检测问题评估\relax }{figure.5.22}{}}
+\@writefile{lof}{\contentsline {figure}{\numberline {5.24}{\ignorespaces 最小采样概率与丢失标签的容忍阈值的关系}}{100}{figure.5.23}}
+\newlabel{fig:probvsmissing}{{5.24}{100}{多类别标签数量估计/基于价值的丢失标签检测问题评估\relax }{figure.5.23}{}}
+\@writefile{lof}{\contentsline {figure}{\numberline {5.25}{\ignorespaces 不同标签分布下协议的执行时间}}{100}{figure.5.24}}
+\newlabel{fig:timevsds}{{5.25}{100}{多类别标签数量估计/基于价值的丢失标签检测问题评估\relax }{figure.5.24}{}}
+\@writefile{toc}{\contentsline {section}{\numberline {5.7}本章小结}{101}{section.5.7}}
+\newlabel{Conclusion_dts}{{5.7}{101}{本章小结\relax }{section.5.7}{}}
+\@writefile{toe}{\contentsline {section}{\numberline {5.7}Chapter Conclusion}{101}{section.5.7}}
+\FN@pp@footnotehinttrue 
+\@setckpt{body/chap04}{
+\setcounter{page}{103}
+\setcounter{equation}{16}
+\setcounter{enumi}{2}
+\setcounter{enumii}{0}
+\setcounter{enumiii}{0}
+\setcounter{enumiv}{0}
+\setcounter{footnote}{0}
+\setcounter{mpfootnote}{0}
+\setcounter{part}{0}
+\setcounter{chapter}{5}
+\setcounter{section}{7}
+\setcounter{subsection}{0}
+\setcounter{subsubsection}{0}
+\setcounter{paragraph}{0}
+\setcounter{subparagraph}{0}
+\setcounter{figure}{25}
+\setcounter{table}{5}
+\setcounter{vrcnt}{0}
+\setcounter{pp@next@reset}{1}
+\setcounter{@fnserial}{0}
+\setcounter{NAT@ctr}{0}
+\setcounter{FancyVerbLine}{0}
+\setcounter{AlgoLine}{0}
+\setcounter{algocfline}{0}
+\setcounter{algocfproc}{0}
+\setcounter{algocf}{0}
+\setcounter{parentequation}{0}
+\setcounter{endNonectr}{7}
+\setcounter{currNonectr}{0}
+\setcounter{subfigure}{0}
+\setcounter{lofdepth}{1}
+\setcounter{subtable}{0}
+\setcounter{lotdepth}{1}
+\setcounter{r@tfl@t}{0}
+\setcounter{@contsubnum}{0}
+\setcounter{newflo@tctr}{4}
+\setcounter{Item}{25}
+\setcounter{Hfootnote}{0}
+\setcounter{bookmark@seq@number}{87}
+\setcounter{section@level}{0}
+\setcounter{currdefinitionctr}{1}
+\setcounter{enddefinitionctr}{0}
+\setcounter{definition}{0}
+\setcounter{currexamplectr}{0}
+\setcounter{endexamplectr}{0}
+\setcounter{example}{0}
+\setcounter{currtheoremctr}{1}
+\setcounter{endtheoremctr}{0}
+\setcounter{theorem}{0}
+\setcounter{curraxiomctr}{0}
+\setcounter{endaxiomctr}{0}
+\setcounter{axiom}{0}
+\setcounter{currpropositionctr}{0}
+\setcounter{endpropositionctr}{0}
+\setcounter{currpropertyctr}{0}
+\setcounter{endpropertyctr}{0}
+\setcounter{property}{0}
+\setcounter{currlemmactr}{0}
+\setcounter{endlemmactr}{0}
+\setcounter{currcorollaryctr}{0}
+\setcounter{endcorollaryctr}{0}
+\setcounter{corollary}{0}
+\setcounter{newlist}{0}
+}

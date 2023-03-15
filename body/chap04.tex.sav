@@ -1,0 +1,1125 @@
+\chapter{大型RFID系统中未知标签的快速可靠识别}
+\echapter{Unknown Tag Identification in RFID system}
+\label{chap03}
+数以百万计的RFID设备已经应用于智慧图书馆、智能仓储、供应链、无人值守超市和机场等需要物品盘点、商品追踪、防伪等功能的大型场所\ucite{yu2017finding,su2021efficient,YinShoujun2019}。相对于二维码一次识别单个目标的功能，RFID技术具有更高的识别效率、长距离/多目标识别、非视距通信等优点\ucite{su2020time,dong2020improved,xie2019fast}。未知标签识别是RFID系统研究的基础问题之一。未知标签的存在可能会给供应链系统、仓储管理等带来不可忽略的经济损失或安全隐患\ucite{gong2017efficient,liu2015sampling}，比如有毒有害物品不慎混入食品储藏区，或由于温度、湿度、光照、人员管理疏忽等因素影响，导致有毒有害物品的挥发，给食品安全带来重大隐患。因此及时发现危险物品显得尤为重要，未知标签识别问题具有重要研究价值。
+
+现有的商用RFID设备关于标签识别的协议通常基于C1G2通信标准设计\ucite{chen2018using,fu2017fast,zhu2016efficient}。在C1G2通信标准中，阅读器根据标签数量选择一个最优时间帧长度，并把此参数广播传送给需要识别的标签，标签利用哈希函数随机选择一个时隙回复阅读器问询\ucite{guo2021priority}。当有多个标签选择同一个时隙回应时，该时隙为冲突时隙，冲突时隙中阅读器收到的信息是多个标签回应的融合信息，而阅读器不能从融合信息中提取任何一个标签回应信息。因此，在未知标签识别中，冲突时隙会被直接废弃\ucite{lin2021fast,shahzad2015expecting,chen2017efficient}。 但废弃的冲突时隙同样需要时间来验证冲突时隙状态，导致冲突时隙的产生降低了未知标签的识别效率与时隙利用率。为减少冲突时隙的比例，传统协议通常需要设置较大的帧长，同样带来未知标签识别效率低问题。
+
+在含有未知标签的RFID系统中，已知标签的存在会影响未知标签的识别效率\ucite{liu2014efficient}。在未知标签识别协议执行前，每个已知标签所选响应时隙可以通过帧长、标签ID以及哈希种子预测得到。如果预测一个时隙没有标签响应，但在协议执行时该时隙有标签响应，则可断定该响应标签为未知标签，且当该响应标签只有一个时，则该标签ID可以被顺利读取。如果未知标签选择一个有已知标签响应的时隙时，未知标签就不能被识别。因此，已知标签的存在严重制约未知标签的识别效率\ucite{liu2014unknown}。在传统未知标签识别协议中，已知标签灭活效率同样也是协议执行效率的重要衡量标准。
+
+本章主要研究了大规模RFID系统未知标签识别问题中冲突时隙再利用以提升时隙利用率和未知标签识别效率。本章提出了冲突分解法（Conflict Resolution Method，CRM），该协议引入区分码改进传统RN16 (16-bit Random or pseudo-random Number)，使RN16不仅具备传统的冲突检测功能，也具备冲突时隙内冲突标签区分功能。CRM把大部分的冲突时隙转变为有用时隙，将没有未知标签参与的冲突时隙内的已知标签灭活，对有未知标签参与的冲突时隙进行区分码的解缠绕，以提取并识别冲突时隙中的未知标签。理论分析和数值仿真结果证明CRM相对于已有协议对未知标签的识别效率有显著提升。
+
+
+本章的主要内容和结构安排如下，第\ref{problem_definition_dts}节阐述了关键标签内存数据收集方问题的研究价值，并给出了问题的明确定义。
+%
+第\ref{PriorArtLimitation_inventory_updating} 小节回顾了相关协议。
+%
+第\ref{dts_protocol}节设计了一种基于C1G2命令的标签抽样方法DTS，通过在标签上的用户存储区写入二进制序列来表示抽样概率，并利用阅读器的选择命令实现标签的抽样。
+%
+第\ref{dts_application}节基于DTS设计了两种基于DTS的丢失标签检测和数量估计算法来说明DTS 的应用价值。
+%
+第\ref{performanceEvaluation_dts} 节不但通过小规模的原型实验证明了DTS在小规模系统中的可用性，还利用仿真实验证明了DTS算法在大规模系统中能显著减少信息收集的时间开销。
+%
+第\ref{Conclusion_dts}节总结了本章的研究工作。
+
+\section{问题定义与系统模型}\label{problem_definition_dts}
+\esection{Problem Definition}
+\subsection{问题描述}
+假设已知的标签组为$S=\{a_1,a_2,\dots,a_n\}$，待检测标签组为$T=\{t_1,t_2,\dots,t_N\}$。$S$和$T$的数量分别为$n$和$N$。$n$已知且$S$中的所有标签ID存储在后台服务器，阅读器可以访问后台数据库中已知标签ID信息。$N$未知且$N\geq n$，因此RFID系统中出现的未知标签数量为$u(u=N-n)$。 未知标签识别的目的是找出待测标签组$T$中包含的未知标签，并读取其ID信息。在一个识别可靠度为$\omega$的RFID系统中，$(\omega \in [0.1))$，至少需要识别出的未知标签数量为$\omega \times u$，也就是说未被识别的未知标签数量为$m$，且$m\leq (1-\omega)\times u$。此CRM协议的目的是最小化执行时间。
+
+\subsection{系统模型}
+\begin{figure}[t]
+    \setlength{\abovecaptionskip}{0pt}
+    \setlength{\belowcaptionskip}{0pt}
+  \centering
+  \includegraphics[width=0.5\textwidth]{UnknownTags111}
+  \bicaption[UnknownTags111]{}{含有未知标签的RFID系统模型}{Fig.}{Unknown tags existed RFID system.}
+\end{figure}
+一个典型的RFID系统包含标签、阅读器和后台服务器3个部分。每个标签拥有一个独一无二的识别ID（可被读/写），ID的长度一般为96位，且系统内所有标签存储一个相同的哈希函数$\mathcal{H}(\cdot)$。后台服务器存储标签ID信息，并可根据ID信息实现多样化的业务需求。因此，标签根据其ID是否被收录可分为已知标签和未知标签。阅读器可获取标签ID，是链接标签与后台服务器的高速通道，阅读器与后台服务器可统称为阅读器。单个阅读器的读取距离为$5m\sim 12m$，因此，一个较大范围内标签的识别监控需要多台阅读器交叉协同工作。而每个阅读器都会收到1个标签反馈数组，后台服务器对所有反馈数组进行位或运算，即可获取1个融合反馈字符串数组\ucite{xie2019fast}。因此，RFID系统中所有阅读器可以被看作1个超强阅读器，如图~\ref{UnknownTags111}所示。所有标签均在此超强阅读器识别范围内，阅读器周期询问识别范围内的标签，并搜集标签反馈信息。
+
+
+%大规模的RFID系统通常包含依据所有权、品牌、价值或危险系数等指标划分的多个附带标签的物品群组。价值越高、危险系数越高的物品一般会更受关注，在识别过程中，此类物品应先于其他物品完成识别，更快的完成盘点。然而，现有标签识别协议只能对标签实现逐一类别激活、逐一类别识别的功能。这样虽然保证了受关注物品的优先识别，但其他类别物品识别时间就要推迟，识别效率受到损害，且在识别过程中，标签冲突现象不能得到缓解，时隙利用率低仍然制约各个类别标签的识别效率。
+
+%在不损害各个标签类别识别效率的前提下，为了提高高优先级类别标签的识别效率，冲突时隙的再利用成为解决问题的突破口。然而传统的基于EPC C1G2 标准的Aloha协议中冲突时隙被废弃的直接原因是冲突信号无法解调为分属冲突标签的单一信号，且冲突时隙的最小比例为26.4\%。因此本章研究了改进的Aloha协议，使冲突时隙变为伪单一时隙重新激活冲突时隙内的最高优先级标签，增大了高优先级标签的识别概率和时隙利用率。
+
+%假设一个RFID系统有$w$个类别标签，且每个标签都有惟一的标识ID，标识ID由两部分组成：优先级ID(PID)和成员ID。一个PID中只有一位是$1$，其他位全是$0$。PID中“1”的索引标识优先级的高低，当$1$从左到右移动时，优先级下降。例如，PID-100的优先级高于PID-001。PID的长度为$w$，对应的，成员ID 的长度为$(96-w)$。因此，总共$N$个标签被随机分为$w$个不同的优先级群组。每个优先级群组中的标签数量分别为$=\{n_1, n_2，\dots, n_w\}$。本章专注于以个性识别效率识别每个优先级群组中的所有标签，优先级高的群组享有更高的识别效率。
+
+
+\section{现有方案及其不足}\label{PriorArtlimitation_dts}
+\esection{Existing Art and Limitation}
+
+\subsection{相关工作}
+\esubsection{Related Work}
+\begin{figure}[t]
+    \setlength{\abovecaptionskip}{0pt}
+    \setlength{\belowcaptionskip}{0pt}
+  \centering
+  \includegraphics[width=0.5\textwidth]{DFSA}
+  \bicaption[DFSA]{}{DFSA中阅读器的操作}{Fig.}{The operation of reader in DFSA.}
+\end{figure}
+现有的能够解决未知标签识别的协议可以分为标签识别\ucite{guo2021priority,fu2017fast,chen2018using,su2020partitioning,wang2021time}、未知标签检测\ucite{liu2020fast,gong2017efficient,liu2015sampling}、未知标签识别\ucite{su2020partitioning,qian2016tip,zhu2017efficient}3 类。这3 内协议目前主要存在以下3个不足：
+\begin{asparaenum}
+\item 标签识别旨在收集RFID系统中标签ID信息，通过对比收集到的标签ID与服务器中存储的已知标签ID，即可发现未知标签；虽然这种协议可以实现未知标签识别，但需要收集所有RFID系统中标签ID信息，因此时效性较低。
+\item 未知标签检测协议意在检测RFID系统是否存在未知标签，不必获取未知标签ID信息，因此通常使用概率的方法来优化协议参数设置，但在检测中会出现假阴性错误，即未知标签的反馈信息被已知标签覆盖，导致未知标签检测失败。
+\item 未知标签识别协议旨在收集RFID系统中未知标签ID信息，但为了减少已知标签干扰，通常会把已知标签灭活，由于假阴性错误存在，未知标签可能会被误认为已知标签而被灭活。因此，减少假阴性出现概率成为未知标签识别协议中不可忽略的问题。
+\end{asparaenum}
+
+现有标签识别协议PTI\ucite{guo2021priority}通过设置标签优先级，以及改造RN16规则，实现冲突时隙中获取最高优先级标签ID的功能，PTI把部分冲突时隙变为有用时隙，但PTI不能针对性的识别冲突时隙内的未知标签，且对已知标签灭活效率低下。TES-FAS\ucite{fu2017fast}通过快速估测算法，实时调整时间帧长来提高标签识别效率，但TES-FAS无法实现冲突时隙内标签识别。BRTP\ucite{chen2018using}是基于曼彻斯特编码的二叉树算法，把待识别的标签逐步分成更小的群体直至每个群体内只剩一个标签，从而达到标签识别的目的，但二叉树算法识别效率仍需提高。MAP\ucite{su2020time}是基于标准时隙Aloha协议的算法，MAP能够把时隙利用率提升到36\%，但在协议执行中，冲突时隙仍然是制约标签识别效率的最大因素。SIP\ucite{dong2020improved} 利用阻塞标签的协助来识别特定标签，阻塞标签可以有效保护用户隐私，但同样增加了标签识别的负担，使冲突时隙数量增多，导致标签识别效率降低。BFI\ucite{xie2019fast}识别附着多个标签的物体，虽然有部分标签能通过标签相关性过滤掉，但冲突时隙仍然是不能回避的问题。
+
+ 现有的未知标签检测协议CSD\ucite{liu2020fast}充分利用服务器性能计算合适的哈希种子，使已知标签映射入特定位置的时隙中，从而实现绝大部分的时隙为空时隙，在实际映射中，如果空时隙变为单一时隙或冲突时隙，则表明RFID系统中有未知标签存在，CSD虽然在协议执行时有很高的检测效率，但协议执行前，需要耗费大量时间寻找合适的哈希种子，且在协议执行过程中，不能灭活已知标签来降低干扰。WP\ucite{gong2017efficient}利用多哈希的方式把时间帧中的时隙状态全变为空时隙，如果有未知标签出现，则相应时隙会变为单一时隙或冲突时隙，虽然未知标签检测的复杂度降低，但是多哈希的运算，以及每个时隙哈希种子的设定都需要阅读器发送额外的数据到标签这导致了WP检测效率的延迟。SBF-UDP\ucite{liu2015sampling}利用采样和布隆过滤器，减少参与检测标签的数量，以及过滤已知标签来增大未知标签检测的概率，但布隆过滤器的使用同样需要多次哈希运算来完成。
+
+本文旨在提升未知标签识别的时隙利用率以及识别效率。现有未知标签识别协议有UTI-SBF\ucite{chen2018using}、HUTI\ucite{fu2017fast}、PUTI\ucite{zhu2016efficient}、FUTI\ucite{liu2014efficient}、MUIP\ucite{liu2014unknown}、TIP\ucite{qian2016tip} 等，都是基于标准Aloha设计，而动态帧时隙Aloha（Dynamic Frame Slotted Aloha，DFSA）协议是目前由EPC C1G2标准\ucite{epcc1g2}指定的标准化解决方案。如图~\ref{DFSA}所示，DFSA的基本思想是首先采用标签估测方法(Tag Estimation Method，TEM)\ucite{cha2006dynamic}来估计标签的数量，利用估测的标签数量优化时间帧的大小，进而优化时隙利用率提高已知标签灭活和未知标签识别效率。然而，他们均面临着冲突时隙不能被利用的共同问题。且由于已知标签灭活效率低，导致未知标签识别效率过低。为了减少或转化冲突时隙，ZHU等\ucite{zhu2016efficient}利用标签反馈的物理层信息判断一个时隙内标签响应的个数，再利用二次哈希的方式让冲突标签重新选择时隙，虽然这种方式可以转化部分冲突时隙为有用时隙，但一个没有未知标签响应的冲突时隙不能被有效灭活，已知标签的干扰仍然是造成未知标签识别效率低的主要原因。未知标签识别效率仍有提升的空间，且在实验中利用USRP获取标签响应的物理层信息，此种信息在商业RFID设备中无法获取。LIU等\ucite{liu2014efficient}利用多哈希方式构建过滤数组，过滤数组能高速过滤已知标签，使未知标签被识别的概率增大，然而针对全局的多次哈希运算要消耗大量的时间，冲突时隙也不可避免且无法被利用。LIU等\ucite{liu2014unknown}基于标准Aloha协议，快速灭活单一时隙中的已知标签，识别预测空时隙转变为单一时隙的未知标签，但冲突时隙仍然无法被利用，这降低了未知标签的识别效率。总而言之，冲突时隙不能被有效利用仍是造成未知标签识别效率低的不可忽视的原因。
+%在本节中，我们将简要回顾一些关于标签识别的最具代表性的文章。动态帧时隙Aloha（Dynamic Frame Slotted Aloha，DFSA）协议是目前由EPC C1G2 标准\ucite{epcc1g2}指定的标准化解决方案。如图~\ref{DFSA}所示，DFSA的基本思想是首先采用标签估测方法(Tag Estimation Method，TEM)\ucite{cha2006dynamic}来估计标签的数量，利用估测的标签数量优化时间帧的大小，进而优化时隙利用率提高标签识别效率。一些最近的研究工作试图提升轻量级估测器的准确性。例如，陈等人采用最大后置概率方法MAP（Maximum a Posteriori Probability）获得更准确的待测标签群大小的估定值\ucite{chen2017efficient}，提高吞吐量来优化的时间开销。然而，即使在最优的参数设置条件下，由于不可避免的标签冲突，DFSA的吞吐量（时隙利用率）仍被限制在其理论最大值$36.8\%$。时隙利用率低仍然是制约标签识别效率的主要因素。
+
+%为了进一步提高时隙的利用率，一些协议选择跳过空时隙，迁移冲突时隙。预留时隙的多位Aloha协议(RSMBA)\ucite{yihong2013multiple}提出了一中两相步法跳过冲突时隙和空时隙。具体来说，第一阶段观察时隙状态，阅读器允许标签响应一条短消息以识别时隙类型，为了跳过无用的时隙，阅读器立即标记冲突时隙中的标签并且重建单一时隙中的标签索引；第二阶段识别阶段，阅读器只对重新建立索引的单一时隙问询并获取标签ID。同样的，何等人提出了一种改进的防冲突算法，该算法不仅能识别冲突时隙，还能利用补充的空时隙重新索引冲突标签\ucite{he2013aloha}。虽然这些协议大幅提高了时隙利用率，但均需标签发送额外的数据区分时隙状态，且协议执行时，所有的标签无论关联物品属性均等分配时隙资源，各个标签享有相同的识别概率。
+%复杂的逻辑操作序列给RFID标签带来了大量的计算负担，难以集成到目前的C1G2标准中，且协议执行时，所有的标签无论关联物品属性均等分配时隙资源，各个标签享有相同的识别概率。
+
+%总而言之，所有的相关工作都忽略了标签识别中的群体个性化问题，我们率先将差异的识别效率分配到不同的优先级群体。
+
+
+
+%文献\ucite{JueWangLowPower}提出了一个并行标签识别协议Buzz，利用稀疏编码以及压缩感知技术，可以对冲突时隙中阅读器传送的信息进行解码。
+%%
+%因为标签可以利用冲突时隙传送效率，系统的吞吐率得到了大幅度的提高。此外，传输的速率可以根据信道的状况动态调整。Buzz协议假设每个标签选择的时隙是可预测的，并且需要一些自定义命令的支持。
+%%
+%因此，Buzz协议只能使用可编程RFID 设备实现（例如，WISP标签和USRP阅读器），不能在现有的商用设备上部署。
+%%
+%文献\ucite{liu2015fast}提出了一个分组协议GCC，可以将标签按照其价值等特性进行分组。分组之后，我们可以对每组标签运行不同的策略，从而实现个性化的监控。
+%%
+%但是GCC为了节约传输开销，采用了轻量级的指导向量来进行分组信息的传输。但是指导向量同样需要WISP标签的支持不能在商用设备上实现。
+%%
+%现有的树状协议\ucite{AlexSigmetrics13HoppingTree} 常使用标签的EPC存储区进行标签选择和采样。
+%%
+%EPC存储区存储着被标记物品的96 位商品编码，阅读器可以通过\texttt{Select}命令，对具有特定EPC 片段的标签进行选择。
+%%
+%理论上来说利用我们可以利用EPC 存储区实现多类别标签的个性化抽样，但是这会带来大量的计算。阅读器必须在后端服务器上对各类标签进行抽样，找出被采样的标签。
+%%
+%然后搜寻一个合适的片段，令所有被采样的标签都有此片段，而所有未采样的标签都没有此片段。显然这样的EPC 片段不一定存在，即使存在也会带来很高的计算复杂度。
+%%
+%因此，现有的的协议都不能满足本章的设计目标，要么是不能在商用设备上实现，要么就是很难适应动态大规模系统实时监控的要求。
+%%
+%本文在对比实验时，主要与现有的商用阅读器所采用的阿罗哈协议进行对比。
+
+
+\subsection{主要挑战}
+\esubsection{Challenge Issues}
+通过研究现有未知标签识别协议优缺点分析以及标签识别协议、未知标签检测协议中冲突时隙比例减小方法研究，我们发现基于传统帧时隙的Aloha协议中，冲突时隙无法被利用一直是制约协议性能提升的瓶颈因素。为增大时隙利用率，CRM把部分冲突时隙转变为可利用时隙，因此，CRM主要面临以下三个挑战亟待解决。
+
+%通过分析现有的标签识别协议，我们发现对于包含多个群组的标签识别仍然采用逐个群组识别或无差别识别的方式。采用逐个群组识别时，当前群组识别过程中，其他群组只能等待，失去了各群组享有时隙资源的平衡。采用无差别识别方式时，各群组内的标签将会按照标签比例分配时隙，所有群组内的每个标签享有相同的识别概率，虽然保证了各群组时隙资源分配的公平性，但却不能满足各个群组不同的识别紧迫性需求。且在现有识别协议中，对于冲突时隙往往采用直接废弃的手段来提高识别的时间效率，但这反而成为制约时间效率提升的因素，因此，针对不同群组的时隙资源分配以及化解冲突时隙问题现有标签识别协议仍有较大的提升空间，主要有以下三个挑战亟待解决。
+\begin{itemize}
+  \item 首先，为了转化冲突时隙为可用时隙，如何区分冲突时隙内的冲突标签并把冲突时隙转变为伪单一时隙成为转化是否成功的关键。
+  \item 其次，转化冲突时隙不可避免需要消耗更多的时间，且冲突时隙内的冲突标签越多转化越困难，如何选择低消耗的冲突时隙进行转化是提升协议执行性能要解决的关键问题。
+  \item 最后，CRM中由于冲突时隙的再利用，简单的把时间帧长度设置为标签总量并不合理，优化时间帧长度可以使未知标签识别性能得到更大提升。
+\end{itemize}
+
+
+\section{阅读器与标签通信的C1G2标准简介}
+\esection{Background of C1G2 Specification}
+\subsection{标准Aloha协议}
+\begin{figure}[t]
+    \setlength{\abovecaptionskip}{0pt}
+    \setlength{\belowcaptionskip}{0pt}
+  \centering
+  \includegraphics[width=0.8\textwidth]{CRM}
+  \bicaption[CRM]{}{DFSA中阅读器的操作}{Fig.}{The operation of reader in DFSA.}
+\end{figure}
+
+\begin{figure}[t]
+    \setlength{\abovecaptionskip}{0pt}
+    \setlength{\belowcaptionskip}{0pt}
+  \centering
+  \includegraphics[width=0.6\textwidth]{PCRM1}
+  \bicaption[PCRM1]{}{DFSA中阅读器的操作}{Fig.}{The operation of reader in DFSA.}
+\end{figure}
+
+商业RFID设备中阅读器与标签的通信通常遵照标准帧时隙的Aloha协议设定。其执行过程如图~\ref{CRM}{a}所示，一般需要执行多个时间帧才能完成设定任务，每个时间帧含有多个时隙。当一个时间帧开始时，阅读器首先向周围空间发送询问命令\texttt{Query}，并广播包括时间帧中时隙数量$f$、 哈希种子$r$的参数。一旦接收到\texttt{Query}命令，每个标签计算哈希函数并随机选择时间帧中的一个时隙作为自己的响应时隙，哈希函数为 $sc\!=\!\mathcal{H} (ID,s)\!\mod \!f$，其中$sc$为时隙计数器，且$sc\in[0,f)$，$\mathcal{H}(\cdot)$为一个预先存储在标签中的哈希函数，ID 为标签识别码。此后，阅读器逐个询问时间帧中的时隙，当一个时隙询问结束时，阅读器向当前时隙发送\texttt{slot end}命令结束访问并初始化下一时隙，而标签的时隙计数器$sc$收到命令后自动减1，当$sc$为0时，标签在接下来的时隙中向阅读器发送预定信息。当协议执行完毕后，所有的时隙可以分为三种状态：1）空时隙，没有标签选择该时隙；2）单一时隙，仅有一个标签选择该时隙回复阅读器询问；3）冲突时隙，有且多于一个标签选择该时隙回复阅读器询问。在标准Aloha协议中，阅读器对于不同状态的时隙采用不同的执行过程。对于空时隙，阅读器发送\texttt{Query}命令后，等待$(T_1+T_3)$后仍然没有标签响应，阅读器终止该询问并访问下一个时隙。对于单一时隙，阅读器发送\texttt{Query} 命令后，标签回复一个16 位的随机数RN16，阅读器返回标签一个包含该RN16信息的\texttt{ACK}命令，标签确认收到\texttt{ACK}命令中的RN16 与自己发送的RN16信息一致，则此标签回复预设信息返回阅读器，阅读器接收信息完毕则发送\texttt{kill}命令使对应标签沉默，不参与下一个时间帧的执行，并开始询问下一个时隙。对于冲突时隙，标签向阅读器发送RN16，RN16中包含循环冗余检验码(Cyclic Redundancy Check，CRC)，然而此时阅读器接收到的RN16 是多个RN16的融合，CRC 校验错误则认为此时隙为冲突时隙。在标准Aloha协议中，一个单一时隙、空时隙、以及冲突时隙所消耗的时间分别为：
+\vspace{-0.1in}
+\begin{small}
+\begin{equation}\label{Prob_DetectASingleMissingTag}
+\begin{aligned}
+t_{sk}=2\times(T_1+T_2)+T_{RN16}+T_{QueryRep}+T_{kill},
+\end{aligned}
+\end{equation}
+\end{small}
+\vspace{-0.1in}
+\begin{small}
+\begin{equation}\label{Prob_DetectASingleMissingTag}
+\begin{aligned}
+t_{se}=T_1+T_3+T_{QueryRep},
+\end{aligned}
+\end{equation}
+\end{small}
+\vspace{-0.1in}
+\begin{small}
+\begin{equation}\label{Prob_DetectASingleMissingTag}
+\begin{aligned}
+t_{sl}=T_1+T_2+T_{RN16}+T_{QueryRep},
+\end{aligned}
+\end{equation}
+\end{small}
+
+我们假设阅读器与标签通信是在无干扰的条件下进行，根据C1G2标准设定\ucite{epcc1g2}，阅读器向标签发送数据的下行链路速率为26.5kb/s，而标签向阅读器发送数据的上行链路速率为53kb/s，也就是说阅读器向标签发送1-bit数据所用的时间为$12.5us$，而标签向阅读器发送1-bit数据所用时间为$6.25us$。 阅读器与标签通信的参数设定如表~\ref{tab:C1G2}所示。文中变量所表示的含义如表~\ref{tab:annotations}所示。
+
+\begin{table}[t]
+	\centering
+    \bicaption[tab:C1G2]{}{基于C1G2的仿真参数设定}
+    {Tab.}{The parameters setting based on C1G2}
+	\begin{tabular}{cccc}
+		\hline
+		% after \\: \hline or \cline{col1-col2} \cline{col3-col4} ...
+		参数 & 数值& 参数 & 数值\\
+	   \hline
+        $C_{RT}$& $26.5kb/s$ &$T_1$& $62.5us$\\
+        $C_{TR}$& 53kb/s &  $T_2$& $62.5us$  \\
+		Query& 22bits& $T_3$ & $50us$\\
+		QueryRep& 4bits & $T_4$&  $100us$\\
+		RN16& 16bits &$t_{sc}$&  $3.61ms$\\
+        ACK& 18bits &$t_{sk}$&  $0.58ms$\\
+        NAK& 8bits &$t_{se}$&  $0.26ms$\\
+        Kill& 59bits &$t_{sl}$&  $3.19ms$\\
+        EPC ID& 96bits &$t_{dc}$&  $0.80ms$\\
+        DACK& kbits &$t_{ds}$&  $2.97ms$\\
+        TACK& 18-kbits &$t_{dm}$&  $0.64ms$\\
+        $T_{pri}$& 6.25us&$t_{dk}$&  $3.66ms$\\
+		\hline
+	\end{tabular}
+\end{table}
+
+\begin{table}[t]
+	\centering
+    \bicaption[tab:annotations]{}{主要符号及其注释}
+    {Tab.}{The main notations and their annotations}
+	\begin{tabular}{cc}
+		\hline
+		% after \\: \hline or \cline{col1-col2} \cline{col3-col4} ...
+		变量 & 注释\\
+	   \hline
+        f& 每个时间帧中包含时隙数量 \\
+		r& 哈希种子\\
+		$n_i$& 第次检测仍存在的已知标签数量\\
+        $N_i$& 第次检测仍存在的标签数量\\
+        sc& 标签选择响应时隙 \\
+        k& 区分码的长度\\
+        x& 随机码的长度\\
+        c& 一个时隙中标签选择的区分位 \\
+        w& 一个时隙中响应标签的数量 \\
+        $\lambda$& 协议执行一次所需要的哈希种子数量\\
+        A& 一个时隙中区分位的实际映射情况\\
+        Q& 一个时隙中区分位预测映射情况\\
+        y& 实际映射中一个冲突时隙内未知标签数量\\
+        z& 实际映射中一个冲突时隙内已知标签数量\\
+        $T_{all}$& 协议执行时间\\
+		\hline
+	\end{tabular}
+\end{table}
+
+
+
+\subsection{C1G2标准背景简介}
+为了解决上述三个挑战，本节首先提出冲突分解法（CRM），利用商用阅读器与标签通信的C1G2接口协议所规定的命令来实现未知标签识别。因为CRM所用命令都是挪用或改编C1G2标准命令，因此CRM可以在USRP（Universal Software Radio Peripheral）设备模拟实现，也可以对商用阅读器命令做轻微修改来实现。我们首先介绍RFID标签各存储区的功能和本节所使用的C1G2命令。
+%
+\begin{asparaenum}
+\item \textbf{标签存储区简介：}C1G2标准要求阅读器与所有类型的标签的逻辑接口区定义一个统一制式的标签存储模型（C1G2规范\ucite{epcc1g2}44-51页所示）。标签的内存被逻辑分割为四个存储区：（i）预留存储区，用于存储标签验证密码，包括对\texttt{Kill}命令、以及\texttt{Acess}命令等阅读器指令的验证，如果不需验证，则验证密码可以为零值验证。
+%
+（ii）EPC存储区，用于存放标签的标识ID，StoredCRC，StoredPC和XPC word。ID的长度通常为96位，记录标签关联物品的类别，序号和生产商等信息；StoredCRC为信息校验码，验证阅读器与标签发送与接收到的信息是否正确；StoredPC设置能够存储的ID长度，XPC word为扩展协议控制。
+%
+（iii）TID储存区，TID为制造商定义标签规范并存储标签能够支持的函数，例如标签属性类别标识值ISO/IEC。
+%
+（iv）用户存储区，允许用户存储用户数据。通常根据任务需要划分为多个文件，利用C1G2中的\texttt{Write}和\texttt{Read}命令对此存储区进行读写操作。
+%存储用户所需的数据。通常会被进一步划分成一个或多个文件。我们可以用C1G2支持的\texttt{Write}和\texttt{Read}命令对以下的存储区进行操作，通常每个\texttt{Write}/\texttt{Read}命令能够写入/读取两个字节的数据。
+%
+%在本节中，我们所使用的标签ID存储在EPC存储区，标签ID划分为优先级ID和成员ID，标签ID的总长度为96位，如果优先级ID的长度为$w$，且只能标识$w$ 个优先级，成员ID的长度为$96-w$。如果优先级的划分等级较多，则严重限制成员ID的长度，严重缩减成员数量。因此，当优先级划分等级较多时，用户存储区可以存储优先级ID，把96位ID长度全部归还给成员ID。在协议执行之前，每个标签的优先级ID需要提前设定完成。
+
+
+\begin{table}[t]
+	\centering
+    \bicaption[tab:select]{}{\texttt{Select}命令的结构}
+    {Tab.}{Structure of \texttt{Select} commands}
+	\begin{tabular}{ccc}
+		\hline
+		% after \\: \hline or \cline{col1-col2} \cline{col3-col4} ...
+		字段 & 位数& 功能\\
+		\hline
+		Target& 3 & 修改标签的\textbf{SL}或\textbf{inventoried}标记\\
+		Action& 3 & 执行C1G2规范中表6.30定义的操作\\
+		MemBank& 2 & Mask需要匹配的数据所在的MemBank分区\\
+		Pointer& EBV & Mask所匹配的数据的起始地址\\
+		Length& 8&  Mask的长度\\
+		Mask& Variable & Mask的内容\\
+		Truncate& 1& 是否截断标签回复的数据\\
+		CRC& 16 & CRC-16检错检验码\\
+		\hline
+	\end{tabular}
+\end{table}
+%\item \textbf{\texttt{SELECT}命令简介：}
+%C1G2标签规定由阅读器发送的\texttt{Select}命令能够实现标签筛选，允许用户自定义特征的标签参与标签识别任务。
+%标签应实现一个选定标记SL，阅读器可以使用\texttt{Select}命令决定该标记是否有效（Kill状态下的标签除外）。符合要求的标签将会被设置为活跃状态，否则为静默状态，只有活跃状态的标签才能参与到标签的识别任务。多个\texttt{Select}命令可以获取待识别活跃标签群组的合并和交集。如表\ref{tab:select}所示，\texttt{Select}命令包含8个字段。Target字段决定是否修改SL和inventoried标记，如果Target字段的值为$101_2,110_2,111_2$，则标签无视\texttt{Select}命令所要求的任何操作。Action字段规定执行Target字段指定的操作，PTI中Target字段设置为$100_2$，Action字段设置为$000_2$，指定操作如C1G2标准中表6.30所示\ucite{epcc1g2}，指定标签群体被激活将会参与标签识别过程，其他标签静默等待。MemBank指定Select命令执行任务类型，PTI中MemBank设置为$01_2$，则\texttt{Select}指定EPC存储区。Pointer字段指定Mask字段的起始位置，Pointer字段选用EBV格式。Length字段指定Mask字段的长度，Length字段的长度为8比特，允许Mask字符串的长度为0到255位。Mask字段为对比数据，如果\texttt{Select}命令中Mask中指定Pointer起始位的存储数据与EPC存储区数据匹配，则对应标签被激活参与标签识别任务，否则，标签静默等待下一轮指令来临。Truncate字段决定了标签回复Mask之后的EPC是否应该被截断。CRC保证信息传输的正确性。
+
+\item \textbf{\texttt{ACK}命令简介：}
+\texttt{ACK}命令确认时隙是否为单一时隙，长度为18位，\texttt{ACK}命令包含标签回复的16位长度的RN16字符串（详情请参阅C1G2标准79页）。在传统C1G2标准中，如果阅读器向标签发送ACK 命令，且标签接收到命令后对比ACK中的RN16与自身先前回复的RN16，如果两者一致，则证明该时隙为单一时隙，该标签为时隙内的唯一标签，标签回复阅读器EPC ID 或特定字符串表明自己被成功识别；否则，两者不一致，则证明该时隙为冲突时隙，冲突时隙内的标签不能被识别，标签返回先前的自由状态（处于Ready和Killed状态的标签除外）。
+
+\begin{table}[t]
+	\centering
+    \bicaption[tab:writec1g2]{}{\texttt{Write} 命令的结构}
+    {Tab.}{Structure of \texttt{Write} commands}
+	\begin{tabular}{ccc}
+		\hline
+		% after \\: \hline or \cline{col1-col2} \cline{col3-col4} ...
+		字段 & 位数& 功能\\
+		\hline
+		MemBank& 2 &  数据写入的MemBank分区\\
+		WorldPtr& 8 & 地址指针 \\
+		Data& 16&     写入的数据\\
+		RN&  16 &     访问标签存储区所使用的短码\\
+		CRC& 16 &     CRC-16检错检验码\\
+		\hline
+	\end{tabular}
+\end{table}
+
+\item \textbf{\texttt{KILL}命令简介：}
+\texttt{Kill}命令允许阅读器灭活一个标签。标签灭活的方式有两种：基于密保的标签灭活和基于身份验证的标签灭活。基于密保的标签灭活无需对阅读器进行身份验证，阅读器需要发送两次连续Kill命令来灭活标签。
+
+标签在开放或者安全状态下可以执行基于密码的活跃终止，不需要进行标签身份验证。
+
+允许阅读器对标签预留存储区、EPC存储区、TID存储区和用户存储区的数据进行修改。PTI使用Write命令将PID协议EPC存储区。
+%
+\texttt{WRITE}包括5个字段，PTI需要对其中3个字段修改。MemBank指定Write命令修改数据的存储区域。一个Write命令只能修改一个存储区的数据，连续多个Write命令可以修改不同的存储数据。
+%
+WordPtr字段指定存储区域中修改的字符串地址，假如WordPtr=$00_2$，则指定的字符串为第一个16位存储数据。
+%
+Data字段是需要写入存储区的16位字符串。
+
+\end{asparaenum}
+
+PTI利用以上3个命令完成标签群组优先级写入，优先级群组筛选和冲突时隙转变为伪单一时隙的功能。\texttt{Write}命令修改传统EPC为确定优先级的PID 和成员ID两部分。\texttt{Select}命令筛选合适的优先级群组捆绑完成标签识别。当优先级标签群组选定后，阅读器发送\texttt{Inventory}命令和\texttt{Query}命令开始对选定的标签盘点识别。texttt{Query}命令中包含时间帧中时隙数量、哈希种子等参数。为了确认每个时隙的状态，阅读器发送包含标签返回的RN16字符串的texttt{ACK}命令帮助标签识别当前时隙状态。单一时隙的标签能够被顺利识别，冲突时隙的最高优先级标签重新发送RN16，利用重复验证的方式，把冲突时隙变成伪单一时隙，为高优先级标签分配更多时隙，提高高优先级标签的识别效率。
+
+\section{基于优先级的标签识别方法PTI的设计}\label{PTI_protocol}
+\esection{The Design of Tag PTI}
+
+PTI由两个阶段组成：时隙索引预留和标签识别。在时隙索引预留阶段，每个标签随机选择一个时隙，并将其选择的时隙索引传输到阅读器。在标签标识阶段，我们通过修改阅读器和标签通信命令RN16来区分不同的优先级标签。
+
+
+%我们设计了DTS通过选择性读取的方式实现个性化的标签采样。我们提出的DTS方法不需要额外的硬件开销，例如哈希函数和复杂信息理解。DTS主要由分配和采样两种操作组成。在标签注册入库时，我们通过分配操作将一个代表采样概率的二进制字符串写入标签。在进行标签监控室，我们通过采样操作对标签根据其写入的采样概率进行采样。接下来，我们将详细介绍这两个操作。
+
+
+%\begin{asparaenum}
+%\item \textbf{时隙索引预留：}
+\subsection{时隙索引预留}
+\esubsection{Slot-index reservation}
+在时隙索引预留阶段，我们的目标是获取空时隙的索引并在标签识别阶段跳过被标记的空时隙，以加快标签的识别，增大识别效率。首先，阅读器发出\texttt{Select}命令来启动PTI，该命令选择需要识别的优先级标签群组。为了应对标签冲突问题，阅读器随后发出\texttt{Query}命令，该命令指定时隙数量$f$和随机哈希种子$s$。在接收到这些参数后，标签将计算哈希函数随机选择它们的回应阅读器问询的时隙，哈希函数为$h(ID\oplus s)\%f$。所有标签都同步回应一个长度为$f$-bit二进制字符串来通知阅读器它们的选择。对于映射到第$c$个时隙的任意标签，其返回的二进制字符串对应的第$c$ 位被设置为1，其他位被设置为0。由于各标签同时响应阅读器的查询命令，因此阅读器收到的信息是各标签返回信息的逻辑或运算后的融合信息。通过观察融合序列，阅读器可以很容易地识别时隙的类型(空时隙或忙时隙)。如果阅读器接收到的信号序列中有一位是平的，则对应的时隙为空时隙，如果信号序列中有一个为凸的，表明该时隙至少被一个标签选择，则该时隙为忙时隙。
+
+
+
+
+%分配操作的主要目的是将采样概率写入标签的用户存储区。对每个标签，阅读器需要在它们的内部存储区写入一个二进制向量，用于表示该标签的采样概率，接下来的采样操作会用到该二进制码进行标签抽样。
+%%
+%默认情况下DTS使用二进制向量中字符`1' 的比例，表示标签的采样概率。例如，如果一个10位的二进制向量中字符`1'的数量为5，则对应的采样概率为1/2。
+%%
+%虽然有诸如IEEE 754等更高效的浮点数表示方法，但是我们很难使用\texttt{Select}命令对IEEE 754格式的浮点数进行解析。
+%%
+%为了将特定采用概率转换成一个$k$位的字符串，我们首先通过公式$n_1 = \lceil p\times k\rceil$ 计算应有的字符`1' 的数目，然后我们将$k$位字符串的前$n_1$位置为`1'，其余位置为`0'。
+%%
+%最后，我们将字符串进行一次洗牌操作，洗牌后的字符串同样包括$n_1$个`1'，但是`1'的位置进行了重新排列。
+%%
+%因为洗牌操作的存在，有着相同采样概率的两个标签可能会被写入两个不同的二进制向量，这保证了它们会在不同的轮次被采样。例如，当$k=10$， $p=0.3$时，标签1和标签2分别被写入二进制向量`1000001001'和`110000010'。
+%%
+%因此，当\texttt{Select}命令选择的位为1、7、10 时，标签1会被采样。当\texttt{Select}命令选择的位为1、2、9时标签2 会被采样。
+%%
+%分配操作在标签注册入库时进行，为了将二进制向量写入标签，阅读器需要发送三种类型的C1G2命令：既\texttt{Select}，\texttt{Query}和\texttt{Write}。\texttt{Select}命令用了选取目标标签，因为WRITE命令一次只能对一个标签进行操作。
+%%
+%具体的\texttt{Select}命令的字段的设置如表\ref{tab:sampling}所示，命令长度为117位。其中MemBank 字段设置为01指向EPC存储区，Pointer字段设置为0x20，指向EPC ID的抵制，Mask字段设置为96位的目标标签的ID。
+%%
+%因此只有被选择的目标标签会被激活，并向阅读器发送回复。接下来，阅读器会发送\texttt{Query}命令来识别目标标签，因此\texttt{Select}命令只选出一个目标标签，\texttt{Query} 命令的$Q$字段的值设置为0000，代表帧长为1。
+%%
+%在这个时隙中，阅读器和标签按照EPC 规范附录E\ucite{epcc1g2}中描述的交互过程进行通信。在识别标签后，阅读器会获得标签的$handle$。最后，阅读器会使用\texttt{Write}命令和$handle$来访问标签的USER存储区。
+%%
+%\texttt{Write}命令各字段的具体设置如表\ref{tab:write}所示，因为二进制向量需要被写入USER存储区，MemBank字段设置为11。我们假设所有标签的USER存储区的前端地址预留用于存放采样概率，因此WordPtr字段设置为0x00。
+%%
+%指向USER存储区前16字节的位置。因为每个\texttt{Write}命令只能写入16 个字节，因此如果需要写入的二进制向量的长度大于16位，那么我们需要发送多个\texttt{Write}命令，之后的\texttt{Write}命令的WordPtr字段依次设置为0x01、0x02、$\cdots$。
+%%
+%由于只在标签入库或者采样概率发送变化时进行，分配操作不需要频繁的执行，也不会带来过多的时间开销。
+%%
+%\begin{table}[t]
+%	\centering
+%    \bicaption[tab:successful]{}{分配操作中的\texttt{Select}命令}
+%    {Tab.}{\texttt{Select} commands in sampling operation}\label{tab:sampling}
+%	\begin{tabular}{cccc}
+%		\hline
+%		% after \\: \hline or \cline{col1-col2} \cline{col3-col4} ...
+%		字段 & 位数& 数据 & 功能\\
+%		\hline
+%		Target& 3 & 100& 修改\textbf{SL}标记\\
+%		Action& 3 & 000& 如果Mask 和标签上数据相符将\textbf{SL}置为活跃状态\\
+%		MemBank& 2 & 01& 用户存储区\\
+%		Pointer& 8 &  variable& 随机选取的采样概率向量中能够的某一位 \\
+%		Length& 8& 00000001& Mask 的长度1-bit\\
+%		Mask& 1 & 1& Mask设置为`1'\\
+%		Truncate& 1& 0& 不使用数据截断功能\\
+%		CRC& 16 & CRC-16&  数据校验码\\
+%		\hline
+%	\end{tabular}
+%\end{table}
+
+
+%\item \textbf{标签识别:}
+\subsection{标签识别}
+\esubsection{Tag Identification}
+
+在时隙索引预留阶段之后，我们得到时隙状态的分布，为了提升标签识别效率，PTI在标签标识中直接跳过空时隙。如图\ref{Linkbetweenreaderandtag} 所示，PTI与标准ALOHA协议最大的区别是使用了改进的P-RN16而不是标准的RN16。
+
+\begin{asparaenum}
+\item \textbf{P-RN16和ACK描述：}
+
+传统的RN16(16位随机数)是一个二进制字符串，由随机数或伪随机数生成器（Random or pseudo-random Number Generator，RNG）随机生成。标准Aloha 协议如图\ref{Linkbetweenreaderandtag}{b}所示，当标签为非空时隙时，标签回复RN16答复阅读器问询，为检测该时隙状态，阅读器返回一个包含RN16 的\texttt{ACK}指令使阅读器辨别时隙状态，当接收到\texttt{ACK}指令后，标签对比先前自身发送的RN16与\texttt{ACK}指令中包含的RN16，如果两者一致，则该时隙为单一时隙，否则为冲突时隙。传统RN16能够区分单一时隙和冲突时隙，但它不能提供任何关于时隙中标签优先级的信息。在PTI中，我们将传统RN16修改为P-RN16，P-RN16将PID引入传统的RN16。因此，P-RN16由PID和RNx两部分组成。PID的长度为$w$，RNx的长度为$(16-w)$。因此，如果我们从P-RN16中从左到右提取第一个$1$的索引，就可以识别出优先级最高的PID。由于RN16长度限制，利用改进传统RN16的方式能够同时进行标签识别的优先级群组数量最多为16个，如需同时识别更多优先级群组，可以增加P-RN16的长度允许更多优先级设置。在PTI中，区别于标准Aloha协议的\texttt{ACK} 指令，阅读器提取RN16 中的PID并把从左到右的第一个$1$保留，其它位全部设置为$0$，因此\texttt{ACK}中包含最高优先级标签群组的PID和P-RN16的RNx两部分。我们可以确定，当标签传输的RNx与ACK中包含的RNx不同时，就发生了冲突。
+
+\item \textbf{阅读器与标签通信链路介绍：}
+
+在PTI中，在第一阶段的时隙索引预留之后，阅读器发出\emph{Query}命令来探测每个忙时隙。在探测期间，四种槽类型将执行不同的操作。我们在图\ref{Linkbetweenreaderandtag}{c}中展示了阅读器和标签之间的通信链路，并对协议执行过程中出现的三个时隙状态的不同通信模式分别解释说明。
+
+\begin{asparaenum}[(i)]
+\item \textbf{空时隙：}在时隙索引预留阶段，空时隙被标记，在PTI执行时，空时隙将被直接跳过，减少空时隙带来的时间消耗。
+\item \textbf{可用冲突时隙：}可用冲突时隙是能成功识别最高优先级标签的冲突时隙，即是冲突时隙成功转变为伪单一时隙。
+如图\ref{Linkbetweenreaderandtag}{a}所示，时隙3是一个可用的冲突时隙，其中只有一个属于最高优先级群组的标签会响应。PTI对可用冲突时隙的操作如图\ref{Linkbetweenreaderandtag}{c}中对时隙3中标签的验证读取。在PTI 中，从冲突时隙转变为伪单一时隙需要两次时隙状态确认。在第一次时隙状态确认时，阅读器提取最高优先级标签群组的PID，构造ACK1，ACK1包含提取的PID 和阅读器接收到的组合RNx。如果标签接收到的PID与自身相同，但RNx发送错误，则标签将重新将P-RN16发送给阅读器。在第二次时隙状态确认中，重新验证ACK2 中包含的PID和RNx，如果它们都正确，标签将向阅读器发送EPC ID信息。
+\item \textbf{非可用冲突时隙：}非可用冲突时隙即有多于一个的最高优先级群组标签选择该时隙。非可用冲突时隙不能成功转化为伪单一时隙，不能获取冲突时隙中任何优先级的标签ID。如图\ref{Linkbetweenreaderandtag}{a}所示，时隙4是一个非可用冲突时隙，其中2个属于当前最高优先级群组的标签会响应阅读器问询。非可用冲突时隙的操作也需要两次时隙状态确认，在第一次确认中，此时隙的操作与可用冲突时隙相同。在第二个确认中，最高优先级的两个标签重新发送用于验证的P-RN16，阅读器在此返回包含P-RN16的ACK2命令，标签收到ACK2命令后进行第二次对比，在第二次对比中，ACK2中的RNx与两个标签二次发送的RNx均不相同，则标签仍识别为冲突时隙不发送ID信息。
+\item \textbf{单一时隙：}单一时隙只需要一次确认进行验证，因为标签接收到的PID和RNx与它发送的完全相同。因此，标签将在接收到ACK1后即将EPC ID 发送给阅读器。
+\end{asparaenum}
+
+\end{asparaenum}
+
+
+
+
+
+
+%采样操作为了以预先写入的采样概率对标签进行采样。其基本思想是发送\texttt{Select}命令选取特定的标签，从而模拟标签采样的过程。
+%
+%阅读器发送的\texttt{Select}命令对标签USER存储区中存储的概率二进制向量进行匹配检验。具体来说，阅读器会检测二进制向量中随机选取的某一位，如果该位为`1'，则该标签会被采样。
+%
+%否则，该标签会保持沉默，不向阅读器回复消息。因此，机制保证了二进制字符串中`1'更多的标签能以更高的概率被采样。为了实现上述这种机制，\texttt{Select}命令的各字段的具体设置如表\ref{tab:sampling}所示。
+%
+%首先，因为采样操作要对USER存储区中存储的二进制向量进行匹配检验，因此MemBank字段设置为11，指向用户存储区。其次，Pointer字段设置为阅读器生成的随机数，令$k$ 为表示采样概率的二进制向量的长度，
+%
+%则Pointer字段随机数的取值范围为$0\sim k-1$。最后，Mask字段设置为1 位的字符`1'。由于Mask位数较短，采样操作中使用的\texttt{Select}命令的长度仅为42位，远小于分配阶段中使用的\texttt{Select}命令的长度。
+
+%\end{asparaenum}
+
+
+从以上对三个时隙的操作我们可以得出结论，PTI中的单一时隙可以像标准Aloha协议中单一时隙一样只需一次时隙状态确认就能成功地收集标签ID信息，但不像标准Aloha协议直接废弃冲突时隙的方式，PTI尝试将部分冲突时隙转化为伪单一时隙，伪单一时隙不能随意收集冲突时隙内冲突标签ID信息，只能筛选最高优先级标签回复标签ID信息。因此，PTI对冲突时隙的利用不仅可以提高时隙的利用率，而且可以使高优先级群组比低优先级组享有更高的时隙占有率。如图\ref{Linkbetweenreaderandtag}所示，RFID系统中有两个优先级群组的八个标签，PID为$10$的优先级高于$01$。在标准Aloha协议和PTI中标签1 和标签8映射入单一时隙可以被成功识别，其余的标签在标准Aloha协议中由于标签冲突而无法被识别。但是，在PTI中可以成功收集到标签2的ID，因为冲突时隙3可以转化为伪单一时隙，标签2的优先级高于标签6和标签7。
+
+
+
+
+%接下来，我们讨论了DTS协议实现过程中的一线具体问题，包括Pointer字段的生成，二进制向量长度的选择以及二进制向量的生成。我们分析了DTS协议在不同实现方式之下的表现，并以此为依据对DTS的参数进行优化和选择。
+%%
+%\begin{figure}
+%	\centering
+%	\begin{minipage}[t]{0.49\textwidth}
+%		\centering
+%		\includegraphics[width=1\textwidth]{/dts/simk}
+%		\bicaption[fig:simk]{}{包含未采样位的轮次数}{Fig.}{\# of missing rounds}
+%	\end{minipage}
+%	\begin{minipage}[t]{0.49\textwidth}
+%		\centering
+%		\includegraphics[width=1\textwidth]{/dts/accvsk}
+%        \bicaption[fig:varyk]{}{采样概率的误差}{Fig.}{The error of sampling probability}
+%	\end{minipage}
+%\end{figure}
+%%
+%
+%\textbf{Pointer字段生成：随机和乱序}
+%在每次采样操作中，服务器首先需要生成一个随机的整数，用于设置\texttt{Select}命令中的Pointer字段的取值。
+%%
+%一个最直观的方法是在每次发送\texttt{Select}命令之前，使用均匀随机整数生成器生成器得到一个取值范围在$1\sim k$之间的整数。
+%%
+%该方法最主要的一个缺陷就是，一些特定的位在很多轮后可能仍然不能被选出。对一个特定的取值范围在$1\sim k$之间的整数，$i$轮之后，仍然没能被生成的概率可以表示为
+%\begin{equation}\label{missing_probability_random}
+%p_{m} = \left(\frac{k-1}{k}\right)^{i}
+%\end{equation}
+%为了准确的表示丢失采样的概率，我们模拟了不同$k$值下的随机采样，结果如图\ref{simk}所示。
+%%
+%对于每个$k$，我们进行了1000次独立重复实验，在每次实验中，我们进行了100次采样操作，然后检查是否有$1\sim k$中的整数是否全部被采样。
+%%
+%即使当$k$值较小时，采样丢失仍然是一个十分普遍的现象。例如，当$k=20$ 时，100轮过后，某些位发生采样丢失的概率大约为10\%。
+%%
+%而采样丢失概率随着$k$的增大而增大，当$k=45$时，采样丢失概率接近100\%。
+%%
+%假设某个标签采样概率很小，其表示概率的二进制向量只有一位为`1'，而且该位恰巧一直没有被随机数生成器选取，则该标签在很长一段时间不能被抽中，造成很长的抽样间隔。
+%
+%
+%为了避免有着较小的抽样概率标签有着过长的抽样间隔，我们可以采用一种基于洗牌策略的抽样方法。在乱序策略中，我们首先生成一个数组，其中包含$1\sim k$中所有的$k$个整数，然后我们使用乱序算法对数组中的元素进行重新排列，并依次使用其中的元素作为SELECT 命令的Pointer 字段的取值。一旦列表中的所有元素被使用，我们会重新使用乱序算法对数组中的元素进行重新排列，并重新便利数组中的元素。当采用乱序策略时，$i$轮过后丢失采样概率可以表示为：
+%\begin{equation}\label{missing_probability_shuffle}
+%p'_{m} = \left(\frac{k-i}{k}\right)
+%\end{equation}
+%根据公式\ref{missing_probability_shuffle}，我们可以确定，二进制向量中的任意一位在$k$次采样中必定会被采样至少一次。并且，两次采样之间的最大间隔次数是$2k-2$。最坏情况下，当一个整数在前一轮抽样中的第一次采样中被选择，而在后一轮抽样中的最后一次采样中被选择。当$k<51$ 时，字符串所有的位在100轮次采样中都将被采样至少一次，与随机采样相比，其性能显著提升。
+%%
+%\begin{figure}
+%	\centering
+%	\begin{minipage}[t]{0.49\textwidth}
+%		\centering
+%		\includegraphics[width=1\textwidth]{/dts/timevsk}
+%		\bicaption[fig:varym]{}{分配操作的时间开销\emph{vs.}$k$}{Fig.}{The assignment cost}
+%	\end{minipage}
+%	\begin{minipage}[t]{0.49\textwidth}
+%		\centering
+%		\includegraphics[width=1\textwidth]{/dts/probarray}
+%        \bicaption[fig:probarray]{}{采样概率示意图}{Fig.}{The example of probability array}
+%	\end{minipage}
+%\end{figure}
+%%
+%
+%\textbf{二进制向量长度：精度和空间开销}
+%二进制长度将会影响到采样的精度，使用较长的二进制向量可以保证较高的采样精度，但是同样也意味着更大的空间开销，因此我们需要选择一个合适的二进制长度$k$，在这两者之间进行权衡。在精度方面来说，实际上的采样概率可以表示为$\lceil p \times k \rceil/k$， 与理论上的采样概率$p$ 之间的最大误差位$1/2k$。因此，采样精度和二进制向量的长度$k$成正比。
+%%
+%然而，较大的$k$ 同样意味着，二进制向量需要占据更多的存储区空间。此外，考虑到WRITE命令一次只能写入16 位的数据，写入较长的二进制向量同样需要更多的时间。在实际应用中，我们需要根据具体的需求选择合适的$k$。
+%
+%$k$的最大值由User存储区的大小所决定。例如，本文中采用的商用Monza 4QT标签\ucite{monza4}得User存储区的大小为512 字节。因此，理论上来说，我们可以用4096位的二进制向量来表示采样概率。这个大小的二进制向量能够支持十分精确的采样概率，误差度不会超过$1.22\times10^{-4}$，能够满足绝大多数应用的需求。为了平衡内存空间开销和精度的需求，我们限定$k$的长度不能超过500位，只占用User 存储区的$1/8$，采样概率的精度为$10^{-3}$。 我们做出这种限定主要出于两点考虑。首先，我们不能使用过多的空间用于单一的采样操作。第二，继续增加$k$的取值不能带来更多的精确度提升。如图\ref{}所示，当$k=10$ 时，提升$k$能显著提升采样概率。当$k=1500$时，继续提升$k$对精度的影响相对较小。
+%
+%因为WRITE命令一次只能写入2字节的数据，我们可能，我们可能需要将表示采样概率的二进制向量切分成若干块，并使用多个\texttt{Write}命令，将每一块写入标签的USER存储区。
+%%
+%因此分配操作的执行时间和二进制向量的长度$k$成正比。假设标签和阅读器之间的传输速率时40~Kb/s，传输每位的的开销是25us.因为每个\texttt{Write}命令的长度是59位，因此，传输每个\texttt{Write}命令的开销大约为1.45~ms。
+%%
+%总共的时间开销如图\ref{fig:probarray}所示。为了充分利用WRITE命令，我们通常将$k$设置为16 的整数倍。这样，写入内存的每一位都有实际意义。
+%
+%
+%\textbf{减少二进制向量的空间开销}
+%在DTS所使用的二进制向量的设计中，我们假定每一位有着相同的权重。但是这种设置之下，为了表示高精度的抽样概率需要过大的内存开销。为了减少表示高精度抽样概率所需的二进制向量的长度，我们可以为二进制向量中的每一位分配不同的权重。权重的分布服从负指数分布，第$i$位有的权重为$2^{-i}$。所有权重之和为1。令$p_m$ 表示二进制向量所表示抽样概率的最大误差，则使用负指数分布时，所需要的二进制向量长度$k$可以表示为
+%\begin{equation}\label{space_efficient_k}
+%k = \left\lceil log_2 (\frac{1}{p_m})\right\rceil.
+%\end{equation}
+%原有的均匀权重方法，达到相同精度所需要的二进制向量长度$k=\lceil 1/p_m\rceil$，与均匀权重方法相比，负指数权重方法显著减少了空间开销。需要注意的是，在抽样操作中，不同位被选取的概率同样应该服从同样的负指数分布。
+%
+%
+%
+%\section{DTS方法的实际应用}\label{dts_application}
+%\esection{Practical DTS Applications}
+%在本节中，我们讨论了构建在DTS方法上的概率性协议。
+
+\subsection{理论分析}
+\esubsection{Multi-category Tag Cardinality Estimation}
+在本节中，我们从理论上分析每个优先级群组被识别效率，并计算从冲突时隙转化为单一时隙的效率。第$i$优先级群组中的一个标签在PTI执行一轮中被成功识别的概率。
+
+\vspace{-0.1in}
+\begin{small}
+\begin{equation}\label{p_1}
+\begin{aligned}
+p_i=\tbinom{n_{i}}{1}\times \left (\frac{1}{f_i}\right)\times \left(1-\frac{1}{f_i}\right)^{\sum_{i=1}^w n_i-1}\approx \frac{n_{i}}{f_i}\times e^{-\frac{\sum_{i=1}^w n_i}{f_i}},
+\end{aligned}
+\end{equation}
+\end{small}
+
+\vspace{-0.1in}
+\begin{small}
+\begin{equation}\label{p_3}
+\begin{aligned}
+p_e=\left(1-\frac{1}{f_i}\right)^{N_i-1}\approx e^{-\frac{N_i}{f_i}},
+\end{aligned}
+\end{equation}
+\end{small}
+
+\vspace{-0.05in}
+\begin{small}
+\begin{equation}\label{Prob_DetectASingleMissingTag}
+\begin{aligned}
+N_i=\sum_{i=1}^w n_i,
+\end{aligned}
+\end{equation}
+\end{small}
+
+\vspace{-0.1in}
+\begin{small}
+\begin{equation}\label{p_4}
+\begin{aligned}
+U_i=\sum_{i=1}^w p_i,
+\end{aligned}
+\end{equation}
+\end{small}
+其中$p_e$空时隙出现的概率，$n_i$是第$i$优先级群组的未识别的标签数，$i\in[1,w]$，$N_i$是参与第$j$轮标签识别的标签总数，$U_i$是PTI的时隙利用率。从公式~\ref{p_1}和公式~\ref{p_4}中，我们可以很容易地得到时隙利用率随$w$值的增加而增加的结果。
+
+\vspace{0.1in}
+\begin{small}
+\begin{equation}\label{Prob_DetectASingleMissingTag}
+\begin{aligned}
+p_s=\tbinom{N_i}{1}\times \left (\frac{1}{f_i}\right)\times \left(1-\frac{1}{f_i}\right)^{N_i-1}\approx \frac{N_i}{f_i}\times e^{-\frac{N_i}{f_i}},
+\end{aligned}
+\end{equation}
+\end{small}
+
+\vspace{0in}
+\begin{small}
+\begin{equation}\label{Prob_DetectASingleMissingTag}
+\begin{aligned}
+p_c=1-p_e-p_s,
+\end{aligned}
+\end{equation}
+\end{small}
+
+
+\vspace{0in}
+\begin{small}
+\begin{equation}\label{Prob_DetectASingleMissingTag}
+\begin{aligned}
+p_m=U_i-p_s,
+\end{aligned}
+\end{equation}
+\end{small}
+其中$p_s$和$p_c$分别为单一时隙、冲突时隙发生的概率，$p_m$为冲突时隙转化为伪单一时隙的概率。
+
+已识别的标签将不会参与下一轮PTI的执行，而仍未识别处于活跃状态的标签将参与下一轮PTI的执行。
+在PTI开始时，每个优先级的标签的总体大小对我们来说是未知的，因此我们将广播帧大小设置为任意值。
+从公式\ref{p_1}可知，在协议执行完毕后，我们将根据已识别各优先级群组标签数量估算每个优先级群组的标签数量。
+
+
+%多类别数量估计的一个直观的解决方案就是使用标签识别协议去收集所有标签的ID。在这之后，我们很容易根据ID 确定标签所属的类别，并确定每个类别中标签的数量。
+%%
+%由于需要传输大量的标签ID，该方案在大规模RFID系统中执行时间过长，并造成过大的查询延迟。
+%%
+%因此，本文利用DTS方法设计并实现了一种高时效性的多类别标签数量估计(Multi-category Tag Cardinality Estimation)方法。
+%%
+%在MTCE方法中，我们需要提前使用DTS 中的分配操作为每个标签分配一个采样概率。其中，属于同一类别的标签$C_i$，因为价值和重要程度类似，会被分配同样的采样概率$p_i$。
+%%
+%在随后的数量估计过程中，阅读器只需要执行DTS中的标签抽样算法，对样本标签的ID进行识别和收集，并统计样本标签中属于每个类别$C_i$的标签数量，记为$X_i$。
+%%
+%由于$X_i$的取值服从以$n_i$和$p_i$ 为参数的二项分布，类别$C_i$中恰好有$X_i$的标签被采样的概率可以表示为：
+%%
+%\begin{equation}
+%Pr(X_i) = \binom{n_i}{X_i} \times p_i^{X_i} \times(1-p_i)^{n_i - X_i}
+%\end{equation}
+%%
+%因此，$X_i$的期望和方差可以分别表示为$\mu = n_i p_i$和$\delta^2 = n_i p_i  (1-p_i)$。
+%%
+%根据期望的表达式，我们可以得到$n_i$的估计值如下：
+%\begin{equation}
+%\hat{n}_i = X_i / p_i
+%\end{equation}
+%估计器$\hat{n}_i$的置信区间可以表示为：
+%\begin{equation}\label{c4_eq_confidence}
+%Pr\left(\hat{n}_i - \frac{z_{\alpha}\delta}{p_i} \leq n_i \leq \hat{n}_i + \frac{z_{\alpha}\delta}{p_i} \right )  = \alpha
+%\end{equation}
+%其中$z_{\alpha}$是$\alpha$对应的分位数， 通过查表得到。例如，当$\alpha=95\%$时， $z_{\alpha}$的取值为$1.96$。
+%%
+%为了符合估计精度的要求，$\hat{n}_i$的方差需要满足以下约束条件
+%%
+%\begin{equation}\label{c4_eq_constraint}
+%\delta \leq \frac{\beta n_i p_i}{z_{\alpha}}
+%\end{equation}
+%通过联合式\ref{c4_eq_confidence} 和式\ref{c4_eq_constraint}，我们可以得到满足估计精度要求的抽样概率的取值$p_i$如下：
+%\begin{equation}\label{c4_eq_prob}
+%p_i =  \frac{Z_{\alpha}^2}{\beta^2 n_i + Z_{\alpha}^2}
+%\end{equation}
+%也就是说，只要设定的抽样概率大于$p_i$，就能保证估计器$\hat{n}_i$能以$\alpha$的置信度符合估计精度$\beta$的要求。
+%%
+%根据式\ref{c4_eq_prob}，我们发现$p_i$的取值依赖于类别中的标签数量。为了实现高效率的多类别数量估计，我们显然需要根据各类别中的标签数量的多少，为不同类别的标签分配不同的采样概率。
+%%
+%如果一个类别$C_i$中的标签数目较多，则可以为其分配一个较小的采样概率$p_i$，从而减少收集样本标签的时间消耗。
+%%
+%反之，如果$C_i$中的标签数目较少，则可以为其分配一个较大的采样概率$p_i$，从而保证估计的精度。
+%%
+%需要注意的是，在执行数量估计之前各类别中所包含的标签数量$n_i$通常是未知的。接下来，我们会解释如何在$n_i$未知的情况下对采用概率$p_i$进行设定。
+%%
+%事实上，数量估计协议MTCE通常包含多轮用于监控库存信息。
+%%
+%当MTCE的第一次执行时，我们只能根据经验设定$p_i$的值。但是，在之后的执行轮次中，我们可以将上一轮的估计结果$\hat{n}_i$来计算最合适的$p_i$。
+%%
+%由于MTCE需要被频繁的执行来获取实时的库存，该估计值和真实值差距一般不会太大，可以满足采样概率优化的要求。
+
+
+\subsection{优化广播帧长度}
+\esubsection{The Optimization of Broadcasted Frame Size}
+由于冲突时隙的再利用，简单的把时间帧的时隙数量设置为标签总量不能取得时间效率的最大值。
+
+
+
+基于价值的丢失标签检测问题(VMTD)的目标防止丢失标签的价值超过一定的阈值，防止因盗窃和错误操作导致重大的经济损失。
+%
+其核心思想是根据物品价值公平的分配信道资源。具体来说，粘贴在昂贵物品上的标签需要被赋予一个较大的采样概率（例如：手机、电脑和珠宝等高价值商品），保证每轮都能对其进行检测。
+%
+反之，粘贴在便宜物品上的被赋予一个较小的采样概率（例如：衣物，日用品等低价值商品），以保证这些标签不会造成过多的信道占用，提高协议的执行效率。
+%
+这种设定十分符合现实的需要，显然我们需要给予昂贵商品更多的关注，因为一旦其因盗窃等问题发生丢失，将会造成重大的经济损失。
+%
+为了更好的理解VMTD问题，我们将会给出它的具体的定义。假设我们已知系统中包含$\lambda$类的标签$\{C_1, C_2, \cdots, C_\lambda\}$，每类标签对应的商品价值分别为$\{v_1, v_2, \cdots, v_\lambda\}$。为了防止经济损失，我们需要对库存进行监控，并保证所有丢失标签的价值之和不超过阈值$\mathcal{T}$。
+%
+一旦丢失标签价值之和超过阈值$\mathcal{T}$的置信度达到$\alpha$，系统需要尽快告知管理人员发生物品丢失事件，以防止严重的经济损失。
+%
+在VMTD问题中，我们假设标签的ID是已知的。这个假设十分合理且必要，如果系统中有哪些标签都是未知的，我们不可能对丢失标签进行检测。
+%
+
+
+基于价值的丢失标签检测问题的一个直观的解决方案同样是使用标签识别协议去收集现有系统中所有标签的ID。之后，通过比较原有标签和现有标签，我们很容易就能得到丢失标签集合。
+%
+然而，收集所有标签ID时，大量低价值的物品可能对信道造成过多的占用，导致协议的时间效率较差，难以满足大规模系统实时性检测的需求。
+%
+因此，本文利用DTS方法设计并实现了一种基于价值的丢失标签检测(Value-based Missing Tag Detection)方法。
+%
+在VMTD方法中，我们首先利用DTS的分配操作为每个类$C_i$中的标签分配一个合适的采样概率$p_i$。
+%
+在分配好合适的采样概率后，我们只需要使用DTS的采样操作，对丢失标签进行监控。
+%
+一旦$C_i$类中的丢失标签数量超过阈值$m_i = \lceil \frac{\mathcal{T}}{v_i} \rceil$，VMTD方法必须保证这$m_i$的标签中至少有1 个标签被采样，从而成功发现丢失标签事件。令$X_i$代表$C_i$类中被发现的丢失标签数量，则至少发现一个标签的概率可以表示为：
+\begin{equation}
+Pr(X \geq 1) = 1 - (1-p_i)^{m_i}
+\end{equation}
+%
+为了保证丢失标签事件监测的置信度，$p_i$需要满足一下的约束条件：
+%
+\begin{equation}\label{c4_eq_constraint_vmtd}
+(1-p_i)^{m_i} \leq \alpha
+\end{equation}
+%
+通过变换式\ref{c4_eq_constraint_vmtd}，我们可以得到采样概率$p_i$满足检测精度要求的最小取值如下：
+\begin{equation}\label{c4_eq_missingnum}
+p_i = 1- \sqrt[m_i]{\alpha}
+\end{equation}
+%
+
+\begin{figure}
+	\centering
+	\includegraphics[width=5in]{figures/dts/sketch1}
+    \bicaption[fig:sketch-dts]{}{DTS 系统主要硬件组成部分}{Fig.}{Main hardware components of DTS system}
+\end{figure}
+
+\section{协议性能评估}\label{performanceEvaluation_dts}
+\esection{Performance Evaluation}
+在本节，我们首先使用商用设备搭建了一个小型的原型系统，并通过实际实验对DTS进行测试、验证和评估。
+%
+随后，我们通过大量的仿真实验来评估DTS在大规模RFID应用中的表现。主要评估了多类别数量估计(MTCE)和基于价值的丢失标签检测(VMTD)问题了，DTS 方案带来的性能提升。
+
+\begin{figure}
+	\centering
+	\includegraphics[width=0.5\textwidth]{figures/Possession}
+    \bicaption[fig:Possession]{}{DTS 系统主要硬件组成部分}{Fig.}{Main hardware components of DTS system}
+\end{figure}
+
+
+
+\begin{figure}
+	\centering
+	\includegraphics[width=0.5\textwidth]{figures/EachPriority}
+    \bicaption[fig:EachPriority]{}{DTS 系统主要硬件组成部分}{Fig.}{Main hardware components of DTS system}
+\end{figure}
+
+\begin{figure}
+	\centering
+	\includegraphics[width=0.5\textwidth]{figures/slotsneeds}
+    \bicaption[fig:slotsneeds]{}{DTS 系统主要硬件组成部分}{Fig.}{Main hardware components of DTS system}
+\end{figure}
+
+
+\subsection{原型实现}
+\esubsection{Prototype Implementation}
+在本小节中，我们主要介绍了如何实现一个小型的原型系统用于验证DTS方法的正确性和可行性。
+%
+我们的原型系统主要包括三种类型的硬件：一台笔记本电脑，一台RFID阅读器以及若干个标签如图\ref{fig:sketch-dts}所示连接在一起。
+%
+其中阅读器和电脑通过有线以太网进行连接。电脑根据LRRP协议控制阅读器发送响应的C1G2命令。
+%
+LLRP数据包表现为XML格式的文件，并通过TCP/IPC协议传送到阅读器。
+%
+另一方面，阅读器和标签通过超高频无线网络连接(900Mhz)在一起，并依照C1G2空中接口协议进行通信~\ucite{epcc1g2}。
+%
+
+
+\begin{figure}
+	\centering
+	\includegraphics[width=3.5in]{figures/dts/arch}
+    \bicaption[fig:arch-dts]{}{原型系统架构}{Fig.}{The architecture of our prototype}
+\end{figure}	
+
+我们的原型系统由如图\ref{fig:arch-dts}所示的多层结构组成。
+%
+其中，第一层是C1G2空中接口协议，定义了阅读器与标签之间的物理逻辑接口和信息交互方式。
+%
+这一层的协议由RFID阅读器的制造商实现。
+%
+在原型实现时，我们选取最常用的Impinj Speedway R420阅读器\ucite{speedwayr420}。
+%
+原型的第二层是低层次阅读器协议(LLRP)。LLRP协议定义了，运行在PC上的应用程序和RFID阅读器进行通讯的接口。
+%
+应用程序通过LLRP协议控制阅读器执行相应的C1G2指令。
+%
+LLRP同样由RFID阅读器的制造商实现，并封装成库。本文使用Impinj阅读器使用Octane LTK作为LLRP的接口。
+%
+原型的第四层是一个基于LLRP的SDK。 由于LLRP协议使用XML格式表示阅读器需要执行的指令，不太利于人的理解，为了提高开发效率，Impinj提供一个更高层次的LLRP的抽象。这个SDK方便我们使用Java或C\#语言通过调用API的方式对LLRP指令进行设置和修改。
+%
+在我们的原型实现中，我们采样Impinj 提供的Octane 2.02 SDK(C\#)版本\ucite{octane}.
+%
+原型的第五层是基于Octane SDK实现的DTS操作，包括分配和采样两部分组成，能够实现对任意标签按照给定的概率进行采样。
+%
+其他的RFID应用程序，例如多类别标签数量估计（MTCE）和基于价值的丢失标签检测（VMTD）需要调用DTS操作对标签进行选择和读取，通过采用加速标签识别的过程。
+%
+\begin{figure}
+	\centering
+	\begin{minipage}[t]{0.49\textwidth}
+		\centering
+		\includegraphics[width=1\textwidth]{/dts/mpvsap}
+		\bicaption[fig:mpvsap]{}{采样概率测量值与分配值的关系}{Fig.}{Measured vs. assigned probability}
+	\end{minipage}
+	\begin{minipage}[t]{0.49\textwidth}
+		\centering
+		\includegraphics[width=1\textwidth]{/dts/reading-interval}
+        \bicaption[fig:reading]{}{识别间隔vs.采样概率分配值}{Fig.}{Interval \emph{vs.} assigned probability}
+	\end{minipage}
+\end{figure}
+
+\subsection{DTS正确性验证}
+\esubsection{Validate the Effectiveness of DTS}
+
+\textbf{实验设置}：本小节使用商用Impinj阅读器和标签来测试了本章提出的DTS方法。
+%
+所采用的阅读器和标签的型号分别为Speedway R420\ucite{speedwayr420} 以及Impinj Monza 4QT tags\ucite{monza4}。
+%
+R420阅读器所采用的天线为Laird制造的$900~\mathrm{MHz}$右圆极化天线，天线增益为8db。
+%
+与R420相连的控制器，采用的是ThinkPad T450，主要配置信息包括Intel i5($2.2~\mathrm{Ghz}$)CPU和$8~\mathrm{GB}$ DDR3的内存。
+%
+实验中所采用的RFID标签型号为Moza 4QT，该标签有着512位的用户存储区，足以提供高精度的采样概率的存储。
+
+
+
+\textbf{分配操作}：
+在本小节中，我们首先采用一组实验来验证DTS方法中分配操作的性能。
+%
+DTS方法中的分配操作主要通过Octane SDK提供的\texttt{TargetTag}， \texttt{TagWriteOp}和\texttt{TagWriteOpResult}实现。
+%
+在进行分配操作的时候，DTS程序首先会调用\texttt{TargetTag}类的API来选取特定的目标标签，然后调用\texttt{TagWriteOp}的API向目标标签的用户存储区写入代表采样概率二进制向量。
+%
+为了验证，写入的二进制向量是否正确，我们会\texttt{TagWriteOpResult}类的API来读取标签用户存储区中存放的采样概率，并检查是读取到的采样概率是否否符合预期。
+%
+考虑到分配操作只在标签第一次进入系统中执行，在监控标签库存的时候，一般不需要执行分配操作，我们可以认为分配操作的执行并不是十分频繁，因此时间效率并不是一个特别关键的衡量指标。
+%
+因此，我们将分配操作的准确率作为分配操作的衡量指标。
+%
+\begin{table}[t]
+	\centering
+    \bicaption[tab:successful]{}{距离对分配操作成功率的影响}
+    {Tab.}{Successful rate of assignment operation  vs varying distance}
+	\begin{tabular}{cccc}
+		\hline
+		% after \\: \hline or \cline{col1-col2} \cline{col3-col4} ...
+		标签  & 距离 & 方向 & 成功率 \\
+		\hline
+		Tag 1 & surface & front & 100\%\\
+		Tag 2 & surface & side ($\pi/2$) & 100\%\\
+		Tag 3 & 2m &front & 100\%\\
+		Tag 4 & 2m & side ($\pi/2$)& 92.3\%\\
+		Tag 5 & 4m  &front & 91.7 \%\\
+		Tag 6 & 4m & side ($\pi/2$)&  0 \%\\
+		\hline
+	\end{tabular}
+\end{table}
+%
+在我们的实验中，我们使用6个被动标签，并给每个标签分配一个不同的采样概率。
+%
+全部6个标签被分成3组，每组两个标签放到距离天线不同的位置。
+%
+其中，2个标签放到天线的表面，2个标签放到距离天线中心2米处，最后2个标签放在距离天线4米处。
+%
+我们一共进行了300组实验来测量分配操作的成功率。
+%
+在每次实验中，我们首先执行分配操作，按顺序将采样概率写入各标签的内存中。然后依次读取各标签存储的采样概率，并验证读取到的概率是否正确。
+%
+实验结果如表\ref{tab:successful}所示，我们可以发现，当目标标签距离天线较近时，分配操作有着更高的成功概率。然而，随着标签和天线距离的增长，分配操作的成功率逐渐下滑。
+%
+此外，当标签和天线之间的夹角变大时，成功率也发生显著的下降。例如，放置在与天线同一平面上的标签6的分配操作成功率为0。
+%
+这种实验结果是很合理的，因为本实验中所采用的天线在不同方向上有显著的增益区别\ucite{antenna}，放在天线侧面的标签很难从天线处获取足够的能量，因此不能被阅读器访问和操作。
+%
+根据实验结果，我们需要尽量将待写入的标签放在标签的正前方。考虑到分配操作一般只在标签入库时进行，做出这种限制是合理且可行的。
+%
+但是，当管理策略发生变化的时候，我们可能不得不修改已入库标签的采样概率。由于已入库的标签通常距离天线较远，并且面临着金属遮挡和信号干扰的影响，分配操作的成功率必定会显著下降。
+%
+因此，在实际应用中，在写入采用概率后，一定需要检查采样概率是否成功写入。如果失败，阅读器需要重新执行写入操作，直到成功写入或重试次数超过一定的阈值。
+%
+\begin{figure}
+	\centering
+	\begin{minipage}[t]{0.49\textwidth}
+		\centering
+		\includegraphics[width=1\textwidth]{/dts/avtime}
+		\bicaption[fig:avtime]{}{平均每个标签的识别时间}{Fig.}{Identification time per tag}
+	\end{minipage}
+	\begin{minipage}[t]{0.49\textwidth}
+		\centering
+		\includegraphics[width=1\textwidth]{/dts/dense-time}
+        \bicaption[fig:dense-time]{}{标签密集部署场景下的识别时间}{Fig.}{Time for identifying dense tag}
+	\end{minipage}
+\end{figure}
+
+
+\textbf{采样操作}：
+%
+接下来，我们通过实验验证了DTS方法中采样操作的性能。
+%
+在实验中，我们实现了随机算法和乱序算法两种采样方法，并通过实验比较了两者的性能差异。主要关注的性能指标是采样精度，
+%
+为了验证标签是否能以期望的概率被采样，我们将10个标签均匀放在距离天线$0\sim4$米的正前方，每个标签被分配一个取值范围在$0.1\sim1.0$之间的采样概率。
+%
+阅读器报告信息的模式设置为\emph{individual}，这意味着一旦有标签被识别，阅读器会立刻通过TCP/IP向后端服务器传送被识别标签的ID。我们的程序将会捕捉这些识别的ID，并将其存储在一个文本文件中。
+%
+在每组实验中，我们将收集1000个标签的ID，并统计不同标签的采样概率。
+%
+图\ref{fig:mpvsap}给出了分配的采样概率与实际测量之间的关系，我们发现使用随机算法和乱序算法都能得到与预期相符的结果，实际测量到的采样概率与预期差距不大。
+%
+但是，与随机算法相比，乱序算法的抽样概率与预期差距更小，不同组实验结果之间的方差更小，这个结果与我们的分析结果相同。
+%
+图\ref{fig:reading}展示了随机算法和乱序算法对各标签的采样间隔。显然，乱序算法的抽样结果更加稳定，采样间隔方差较小。而随机算法可能会产生较大的采样间隔。
+%
+为了防止一个标签长时间不能被采样，我们认为在诸如丢失标签检测等实际应用中，乱序算法是一个更优秀的策略。
+%
+\begin{figure}
+	\centering
+	\begin{minipage}[t]{0.49\textwidth}
+		\centering
+		\includegraphics[width=1\textwidth]{/dts/time-locations}
+		\bicaption[fig:time-locations]{}{标签识别速率vs.地点}{Fig.}{Reading rate \emph{vs.} locations}
+	\end{minipage}
+	\begin{minipage}[t]{0.49\textwidth}
+		\centering
+		\includegraphics[width=1\textwidth]{/dts/couping-rate}
+        \bicaption[fig:couping]{}{识别率vs.距离}{Fig.}{Identification rate \emph{vs.} distance}
+	\end{minipage}
+\end{figure}
+
+
+\begin{figure}
+	\centering
+	\includegraphics[width=3.5in]{figures/dts/dense-deploy}
+    \bicaption[fig:densedeploy]{}{100 个标签的密集部署场景}{Fig.}{Dense deployments of 100 tags}
+\end{figure}	
+
+%
+时间效率是另一个重要的评价指标。基于标签采样的RFID协议可以减少与阅读器通信的标签数量，从而提升协议的时间效率。
+%
+但是，如果采样操作消耗了过多的时间，那么基于标签采样的RFID协议所带来的时间效率的提升，将会大大减弱。
+%
+为了衡量采样操作的时间效率，我们在我们的实验室中部署了10个标签，每个标签距离天线3m。同样，每个标签被分配一个取值范围在$0.1\sim1.0$之间的采样概率。
+%
+我们将阅读器设置为\emph{DualTarget}模式，这样，阅读器能够反复的识别这10个标签，获得大量的观察结果。
+%
+在每次实验中，我们首先运行C1G2支持的FSA协议来测量识别1000个标签所需要的时间。
+%
+然后，我们在同样的条件下，再次运行DTS+FSA协议来测量识别1000个标签所需要的时间。
+%
+因为两次协议执行的主要差异在于后者需要执行额外的采样操作。因此，通过比较两者执行时间的差异，我们可以计算采样操作带来的时间开销。
+%
+为了避免偶然误差对实验结果的影响，我们重复进行了200组实验，取其平均结果。
+%
+如图\ref{fig:avtime}所示，采样操作带来了额外的时间开销，大约占原有识别时间的30\%。
+%
+此外，我们可以发现，识别每个标签的额外时间开销，随着标签数目的增长先增大后保持稳定。
+%
+根据实验结果的分析，我们发现这种变化的主要原因是读写文件所需时间随着文件大小的增长而增长。
+%
+因此当标签数目较多时，存储识别记录的时间增长，导致标签的平均识别时间略有增加。
+%
+如图\ref{fig:avtime}所示，采用FSA 时，单个标签平均识别时间开销大约是$15~\mathrm{ms}$，而使用DTS+FSA 时，单个标签的平均识别开销大约是$20~\mathrm{ms}$。
+%
+因此，我们可以认为采样操作的带来了大约$5~\mathrm{ms}$的额外时间开销。
+%
+
+
+
+\textbf{多径衰减和耦合效应}：
+大部分RFID系统部署在充满障碍物的室内环境中。受架子等障碍物的影响，阅读器和标签之间的信号传输存在着显著的多径衰减效应。
+%
+多径衰减使得一些标签无法从阅读器获取足够的能量，因此导致了识别效率的下降，影响标协议的时间效率。
+%
+为了衡量多径衰减效应对DTS协议的影响，我们实验室，空办公室，过道和户外等多场景下测试了DTS+FSA协议的时间效率。
+%
+协议执行的结果如图\ref{fig:time-locations}所示，我们可以发现在障碍物较少的环境中，标签的识别速度更快。例如在户外场景下的识别速度大约是实验室场景下的1.35 倍。
+%
+这是因为实验室环境下，有着更多的障碍物，存在比较严重的多径衰减，导致协议的时间效率较差。
+
+\begin{figure}
+	\centering
+	\begin{minipage}[t]{0.49\textwidth}
+		\centering
+		\includegraphics[width=1\textwidth]{/dts/mensimu1000}
+		\bicaption[fig:mensimu1000]{}{估计结果的均值}{Fig.}{Mean estimation results}
+	\end{minipage}
+	\begin{minipage}[t]{0.49\textwidth}
+		\centering
+		\includegraphics[width=1\textwidth]{/dts/varsimu}
+        \bicaption[fig:varsimu]{}{估计结果的方差}{Fig.}{Estimation variance}
+	\end{minipage}
+\end{figure}
+
+此外，如果标签之间过于接近，两个标签之间的耦合效应同样会导致标签供能不足。
+%
+为了衡量耦合效应对DTS的影响，我们将4组堆叠的标签放置在距离阅读器天线不同距离的位置，并测试其识别率。
+%
+实验结果如图\ref{fig:couping}所示，我们可以发现FSA和DTS+FSA两者的识别率随着与天线距离的增大而减少。
+%
+这是因为耦合效应导致标签接收到的能量减少，因此距离天线较远的标签得不到足够的能量而不能被识别。
+%
+最后，我们还测试了在DTS方法在标签密集场景中的性能表现。
+
+如图\ref{fig:densedeploy}所示， 100个标签被均匀放置在$1~\mathrm{m}\times1~\mathrm{m}$的平面上，每个标签会被随机分配一个取值范围在$0.1\sim1$之间的采样概率。
+%
+为了更准确的衡量协议的执行效率，我们重复了10次实验，每次实验中各协议的执行时间如图\ref{fig:dense-time} 所示。
+%
+我们可以发现在所有的轮次中，联合使用DTS+FSA协议都比比单独使用FSA有着更好的时间效率，因为只有被采样的标签才需要被识别，占据信道资源的标签数目大大减少。
+%
+考虑到实际应用中，低价值的物品通常数量更大，我们可以认为很可能大部分标签都有着较小的采样概率，这将使得联合使用DTS+FSA协议对时间效率的提升更为显著。
+%
+此外，我们发现，在密集部署场景中，离天线较远的标签由于受耦合效应的影响，识别成功率下降。因此，100个标签的整体识别率在90\%左右。
+%
+总之，DTS协议的分配操作和采样操作符合设计目标，使用DTS能够更合理的分配信道的占用情况，使得附加在高价值物品上的标签以更大的概率被读取和访问。
+
+%
+\subsection{多类别标签数量估计/基于价值的丢失标签检测问题评估}
+\esubsection{Evaluate MTCE/VMTD}
+%
+除了使用小规模原型系统对DTS协议的正确性进行验证，我们通过仿真实验来评估DTS协议在多类别标签数量估计（MTCE）和基于价值的丢失标签检测（VMTD）两类问题中的应用价值。
+%
+我们使用和现有仿真实验中类似的参数设置\ucite{WeiGongMobihoc13,Yue2014,ZhengInfocom13ZOE}，我们假设阅读器的读取范围内有数以千计的标签。
+%
+通过设置较高的传输功率，使用大增益的天线\ucite{xarray}以及通过扩展接口，为阅读器配置大量的天线\ucite{speedwayr420}，我们能保障系统内的标签被天线覆盖，并能被阅读器成功读取。
+%
+仿真实验中所有的时间消耗等参数设置，参考了原型系统实际测量到的结果。
+%
+\begin{figure}
+	\centering
+	\begin{minipage}[t]{0.49\textwidth}
+		\centering
+		\includegraphics[width=1\textwidth]{/dts/resultsvsprob}
+		\bicaption[fig:mensimu200]{}{100轮估计结果}{Fig.}{100-round estimation results}
+	\end{minipage}
+	\begin{minipage}[t]{0.49\textwidth}
+		\centering
+		\includegraphics[width=1\textwidth]{/dts/numvsprob}
+        \bicaption[fig:numvsprob]{}{采样概率与标签数量的关系}{Fig.}{Sampling probability vs. tag size}
+	\end{minipage}
+\end{figure}
+\begin{figure}
+	\centering
+	\begin{minipage}[t]{0.49\textwidth}
+		\centering
+		\includegraphics[width=1\textwidth]{/dts/timecompare}
+		\bicaption[fig:timecompare]{}{估计时间与标签数量的关系}{Fig.}{Estimation time vs. category size}
+	\end{minipage}
+	\begin{minipage}[t]{0.49\textwidth}
+		\centering
+		\includegraphics[width=1\textwidth]{/dts/accerror}
+        \bicaption[fig:accerror]{}{估计结果与识别失败率的关系}{Fig.}{Estimation results vs. failure rate}
+	\end{minipage}
+\end{figure}
+
+
+
+\textbf{多类别标签数量估计}：
+估计精度是多类别标签数量估计问题最关键的性能指标。
+%
+我们提出的MTCE方法主要依靠统计样本标签中各类别的数量，结合各类别的采样概率来对样本标签的数目进行估计。
+%
+在仿真中，我们假设系统中有1000个标签，并测试了不同采样概率下的估计精度。为了排除随机误差带来的干扰，在每种采样概率下我们重复了100次实验。
+%
+图\ref{fig:mensimu1000}和图\ref{fig:varsimu}分别给出了MTCE方法的估计值和估计方差随采样概率变化的规律。
+%
+我们可以发现，随着采样概率真的增长，估计误差迅速减少，当采样概率$p>0.2$时，估计结果相对保持稳定。
+%
+另一方面，MTCE的估计误差总是随着采样概率的增加而减少。如图\ref{fig:varsimu}所示，实际观察到的MTCE方法的估计方差与理论分析得到的结果十分接近。
+%
+之后，我们横向对比了不同采样概率$p=\{0.1,0.3,0.6\}$之下各轮次的估计结果。如图\ref{fig:mensimu200}所示，较高的采样概率可以带来显著的估计精度的提升。
+%
+以上的实验结果说明，我们可以通过设置一个足够大的采样概率$p$来获取足够高的标签数量估计精度。
+%
+
+%
+虽然较高的采样概率意味着较高的估计精度，由于需要被识别的标签数目增多，协议的时间效率会显著下降。
+%
+为了保证MTCE方法能够快速执行，我们需要根据该类别的重要程度，以及能容忍的误差精度，为各类别其设置合适的采样概率。
+%
+采样概率的值通常由该类别的重要程度，以及能容忍的误差精度所决定。
+%
+图\ref{fig:probvsmissing}给出了可容忍的最大误差$\beta = 0.1$，置信度$\alpha = 0.99$的参数设置下，满足估计精度的采样概率随标签数目变化的曲线。
+%
+我们可以发现标签数量会显著影响采样概率的设置。当标签数目较大时，同样的$\alpha,\beta$精度要求下，我们可以设定更小的采样概率。
+%
+图\ref{fig:timecompare}给出了在一个包含5000各标签的多类别RFID系统中，使用FSA和MTCE两种方法的执行时间。
+%
+MTCE由于采样带来的额外代价，当标签数目较少，采样概率较大时，MTCE方法的执行时间可能会比FSA方法更长，因此MTCE比较适应各类别中标签数目较多的场景。
+%
+当多类别标签数量估计问题中，每类所含的标签数目小于100时，使用现有的FSA方法有着更好的时间效率。
+
+
+由于电磁场干扰以及多径衰减的影响，在现实系统中，经常有大量的标签不能被成功的识别。
+%
+由于MTCE方法在进行数量估计时没有考虑这些本该被识别的标签的影响。因此识别丢失率将会显著影响MTCE方法的估计精度。
+%
+令$p_f$表示现实系统中的识别丢失率，图\ref{fig:accerror}给出了在不同识别丢失率$p_f=\{0,0.04,0.02,0.06,0.08\}$下的估计结果。
+%
+我们发现，随着识别丢失率的增长，MTCE的估计精度显著下降。当$p_f=0.08$时，MTCE的估计结果在800 左右，与真实值有20\%的误差。
+%
+%
+\begin{figure}
+	\centering
+	\includegraphics[width=3.5in]{/dts/probvsmissing}
+    	\bicaption[fig:probvsmissing]{}{最小采样概率与丢失标签的容忍阈值的关系}{Fig.}{Probability vs. missing threshold}
+\end{figure}
+
+
+\textbf{基于价值的丢失标签检测}：
+在基于价值的丢失标签检测中，每个标签应该根据其所属类别中物品的价值大小，被分配一个特定出的采样概率。
+%
+图\ref{fig:probvsmissing}给出在标签数目为1000的系统中，满足检测精度要求的采样概率的变化曲线。
+%
+我们可以发现，随着所系统能容忍的丢失标签数目的增大，对应的采样概率显著减小。
+%
+例如，为了使得丢失标签的数目不能超过$10$的置信度大于$0.999$，标签的采样概率需要大于$0.6$。
+%
+如果只需要保证丢失标签的数目不超过$40$，则标签的采样概率只需要大于$0.2$.
+%
+对于低价值物品，我们通常能容忍较大数量的物品丢失。因此可以为附在低价值物品上的标签设定较小的采样概率，以加快丢失标签的识别过程。
+%
+
+%
+\begin{figure}
+	\centering
+	\includegraphics[width=5.5in]{/dts/timevsds}
+    	 \bicaption[fig:timevsds]{}{不同标签分布下协议的执行时间}{Fig.}{Execution time vs. category distributions}
+\end{figure}
+%
+
+时间效率值VMTD的一个重要的评价指标，因为设计VMTD的主要目的就是为低价值物品分配更少的信道资源，从而提升整体的执行效率。
+%
+在仿真中，我们假设系统中的标签总数目为$10000$，我们假设一共有10个标签类别，每个类别的采样概率在$1/2$ 到$1/1024$之间。
+%
+为了模拟不同标签分布的场景，我们分别使用numpy中的4种分布，\texttt{uniform(1,5,10000)}， \texttt{norm(6,1.5,10000)}， \texttt{exponential(1.0, 10000)} and \texttt{power(5, 10000)}，来将$10000$的标签划分到$10$个标签类别中。
+%
+我们比较了VMTD与现有的标签识别协议FSA、BSTSA和Buzz执行时间的差异，为了减少随机误差，每种协议分别执行300次，取其平均值作为最终结果。
+%
+如图\ref{fig:timevsds}所示，由于FSA、BSTSA和Buzz协议需要读取固定数量的标签，因此其执行时间固定不受标签分布的影响。
+%
+其中Buzz协议有着最高的时间效率，识别速度比FSA和BSTSA快2倍左右。这主要是因为Buzz协议能利用冲突时隙解码回复标签的ID信息。
+%
+然而，Buzz协议的实现需要自定义的软硬件的支持，例如USRP阅读器和WISP标签，因此不能在现有商用设备上实现。
+%
+与之相反，VMTD的执行时间受标签分布的影响。
+%
+当标签数目服从指数分布时，采样概率较大的标签较多，VMTD方法的执行时间较长，大约为$72.7$秒。
+%
+当标签数目服从幂分布时，采样概率较小的标签数目较多，VMTD方法的执行时间较短，大约为$6.12$秒，仅为指数分布场景下执行时间的$1/12$。
+%
+这主要是因为幂分布场景下，被采样的标签数目较少，阅读器只需要识别数以百计的标签，而在指数分布场景下，阅读器需要识别数千标签。
+%
+因此，当附在低价值物品上的标签数量较多时，与传统的标签识别协议相比，VMTD有机会显著提升丢失标签检测的时间效率。
+%
+此外，DTS同样可以和其他高效率的标签识别协议。例如Buzz相结合，进一步提升时间效率。
+%
+总而言之，DTS方法能够更加合理的分配信道资源，从而提升多类别RFID系统中的监控效率。更多的信道资源被分配给高价值的关键标签。
+%
+当关键标签数目较少时，基于DTS的MTCE方法以及VMTD方法能够显著减少与阅读器进行通信的标签数量，从而减少协议的执行时间。
+%
+幸运的是，根据帕累托法则，大部分标签应该都是低价值、非关键标签，因此基于DTS的概率性算法有望提升多数RFID库存监控系统的时间效率。
+
+\section{本章小结}\label{Conclusion_dts}
+\esection{Chapter Conclusion}
+本章研究了标签样本数据收集的问题。基于样本数据可以快速、高效的对整个系统的关键信息进行估计和推测，有助于提供RFID标签监控方法的时间效率。
+%
+本章提出的随机采样方法（DTS）能够支持多类别、个性化的标签采样，为不同类型的标签根据其重要程度设定不同的采样概率。此外，本章提出的采样方法符合C1G2规范的，能够在商用设备上实现。
+%
+本章研究了DTS在RFID系统中的应用，分析了DTS在多类别标签数量估计（MTCE）和基于价值的丢失标签检测（VMTD）等问题上的应用价值。
+%
+实验结果表明，DTS方法能够按照预先分配的采样概率对不同类别的标签进行个性化采样，并带来有限的额外开销。
+%
+此外，在MTCE和VMTD等应用中，基于DTS的方法比现有基于标签识别的方法在时间效率上有着显著提高。

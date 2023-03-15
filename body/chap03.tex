@@ -1,0 +1,947 @@
+\chapter{RFID系统中丢失标签识别}
+\echapter{Missing Tags Identification in RFID System}
+\label{chap03}
+
+\section{引言}
+\esection{Introduction}
+近年来，随着标签价格的大幅下降和能够同时识别多个物体的独特优势\ucite{liu2020fast,yu2018missing,chen2017efficient,tajin2021passive,xie2021lightweight,wang2022reliable}，射频识别（RFID）技术已被集成到许多应用领域，包括供应链管理、目标追踪、库存管理等应用\ucite{yu2017finding,liu2013completely,zhang2017time,zhang2021localization,liu2022towards,liu2021rfid}。由于货物失窃，员工失误和供应商欺诈等因素，丢失标签在RFID 系统中非常常见，标签关联物品丢失会给公司及其客户造成严重的经济损失。正如一篇调查报告所述，在2017 年，丢失事件给美国零售业造成468亿美元的经济损失\ucite{lin2020eumd}。为避免经济损失，系统管理者应尽快识别丢失物品避免RFID应用中严重的经济损失。
+
+与丢失标签识别相关的现有工作可以分为两种类型:丢失标签检测\ucite{yu2017finding,lin2020eumd,zhang2020missing,lin2018segmented,lin2021fast} 和丢失标签识别\ucite{yu2018missing,chen2017efficient,liu2013completely,liu2014multiple,li2013efficient,li2010identifying,zheng2014p,su2021efficient}。 丢失标签检测仅仅确定是否发生了丢失标签事件，而不是进行精确定位哪个标签不见了。一旦丢失标签的数量超过阈值，它能够以预定概率检测丢失标签事件。丢失标签识别的目的是确定检测结果中缺少哪些标签。这些协议还可以根据它们的准确性分为两类:概率性丢失标签识别和完全的丢失标签识别。概率性丢失标签识别试图尽可能快的获得丢失标签的ID，但不能保证所有丢失的标签都会被发现。而完全的丢失标签识别将持续检查所有标签的状态，直到所有标签已成功分类(丢失或存在)才停止。因为完整的丢失标签识别需要接收丢失标签ID，所以它的执行时间比概率性丢失标签识别协议更长。
+%丢失标签的检测和识别可以合并到一个协议中，首先高效地检测丢失标签事件，当丢失标签数量超过阈值时，再获取有价值的丢失标签的完整ID列表。
+
+本章主要研究RFID跟踪系统中高精度的完整的丢失标签识别。例如，在一个有盗窃风险的仓库里，运营商可能视丢失物品类别或价值采取不同的手段。为了实现这一目标，完全的丢失标签识别才能准确的了解丢失了哪些物品、它们的价值多少。完全的丢失标签识别可以采用两种解决方案:ID枚举\ucite{zhang2017efficient,su2018fast,myung2006adaptive,myung2007tag,guo2016psr}和时隙验证\ucite{chen2017efficient,liu2013completely,liu2014multiple,zheng2014p,shahzad2016fast}。ID枚举要求阅读器逐一广播标签的ID，如果没有标签响应查询，则查询的标签将被识别为丢失。ID枚举可以确保所有丢失的标签被识别，但对于大规模的RFID系统，ID广播的方式时间效率较低。为了避开广播ID，时隙验证方法使用哈希函数将每个标签映射到预期的时隙。如果在相应的时隙没有收到响应，则标记该标签为丢失标签。因为待识别的所有标签ID存储在后台服务器，设定哈希函数，阅读器可以预测每个标签在哪个特定的时间段内发送他们的回复信息。标签只需要响应一位或几位短的消息而不是96位的ID。然而，现存的基于Aloha的时隙验证方法仍然效率很低，因为只有单一映射的时隙可以使用，时隙的利用率最大只有$36.8\%$。
+
+本章提出了一种新的基于冲突时隙展开的丢失标签识别算法(Collision Unfolding-based Missing tag Identification，CUMI)来提升时隙利用率，加快丢失标签的识别速率。CUMI尽力把冲突时隙转变为有用时隙，而不是像其他协议直接废弃冲突时隙。为了实现这一目标，CUMI首先设计了一种指示向量来通知每个冲突时隙内冲突标签的数量$k$。冲突时隙中的每个标签将选择一个$k$ 位二进制响应字符串，其中一位随机设置为$(1)_2$，其余$k-1$位设置为$(0)_2$。冲突标签的二次选择增大了冲突标签被区分的概率。CUMI还应用了曼彻斯特编码机制解码多个冲突标签的二进制字符串响应。大量理论分析和数值仿真结果证明了CUMI比现有基于Aloha协议的时隙利用率更高，时间效率更高。
+
+%本章主要研究针对关键标签的内存数据收集问题。在实际很多时候阅读器只想获取一个特定集合内的关键标签的内存数据，但是系统中同时存在大量的无关标签，会给关键标签的读取带来很大的困难。本章提出一种基于哈希思想的信息收集（Perfect-hashing based Information Collection，PIC）协议来解决其他标签带来的干扰。PIC 协议首先会利用多个哈希种子，建立关键标签到时隙之间的一一映射。然后PIC协议通过在每个时隙广播对应关键标签的签名来过滤其他无关标签，以便对关键标签进行信息收集。大量理论分析和数值仿真结果证明了PIC方法与现有方法相比通信开销显著减少。
+
+
+本章的主要内容和结构安排如下：第\ref{Problem Definition CUMI}节阐述丢失标签识别的问题定义。第~\ref{Existing Art and Limitation CUMI}节分析了现有丢失标签识别协议识别效率低的原因。第\ref{CUMI protocol}节提出了一种基于冲突时隙展开的丢失标签识别（CUMI）协议。第\ref{ECUMI}节针对CUMI协议需要发送较长的指示向量而效率更高的增强协议ECUMI。第\ref{Discussion_ECUMI}节讨论了几个影响丢失标签识别时间效率的因素。第\ref{PerformanceEvaluation_ECUMI}节仿真评估了CUMI和ECUMI的执行性能，并在相同参数设置下与最近相关协议进行时间效率对比。第\ref{Conclusion_Estimation} 节总结了本章的研究工作。
+
+\section{问题定义}\label{Problem Definition CUMI}
+\esection{Problem Definition CUMI}
+假设一个仓储中所有的物品都附有标签并由RFID阅读器监控。阅读器周期性的向监控区域内的标签发送询问命令，并收集它们的回复信息。然而一个阅读器的通信范围有限（$5m$-$12m$），因此，实际应用中需要多个阅读器来覆盖整个监视区以确保每个标签至少能够与一个阅读器通信。虽然一个标签可能回应多个阅读器的询问，我们可以对每个阅读器收到的相应向量实行位或操作，因此，我们采用与其他协议相同的假设，把RFID系统中多个阅读器假设成一个超级阅读器。为了简化实验环境，我们将只考虑在RFID应用场景中有且只有一个阅读器。因此，本章主要考虑典型RFID系统，其中只有一个阅读器，一个后台服务器，若干天线，以及拥有唯一标识ID的标签组$S_{all}=\{tag_1, \cdots, tag_i, \cdots, tag_N\}$，所有标签ID存储在后台服务器中。阅读器与后台服务器为全双工数据传输方式。然而，有些标签可能由于运输疏忽、货物失窃或其他错误操作行为而丢失。我们用$M$表示丢失标签的数量。本章重点是以最小的时间成本识别所有的丢失标签。本章主要使用的符号见表\ref{NotationTable_CUMI}。
+
+\begin{table}[htbp]
+  \begin{center}
+\bicaption[NotationTable_CUMI]{}{符号列表说明}
+{Tab.}{List of Notations}
+    \begin{tabular}{ll}
+    \toprule
+       \textbf{符号} & \textbf{说明}\\
+\midrule
+       $N$  & RFID系统中标签数量\\
+       $M$  & 丢失标签数量\\
+       $S_{all}$  & RFID系统中标签组\\
+       $H(\cdot)$  & 用于选择时隙的哈希函数\\
+       $s$& 每轮时间帧中选用的随机哈希种子\\
+       $n_i/n_i^{'}$  & 在CUMI/ECUMI任意一轮识别中已经识别的标签\\
+       $f$  & 广播帧长\\
+       $p_{ij}$  & 在第$i$个时间帧中任意一个帧槽有$j$个标签响应的概率\\
+       $p_{ij}^u$  & 在第$i$个时间帧中任意一个帧槽有$j$个标签响应且该帧槽能被使用的概率\\
+       $m_i/m_i^{'}$  & 在第$i$个时间帧中丢失标签仍然存在的数量\\
+       $L_v$ & 标识向量的长度\\
+       $\lambda$ & 标签回复阅读器数据长度\\
+       $S_{ja}$ & $j$冲突帧槽的识别能力\\
+       $f_i^{op}$ & CUMI优化的广播帧长\\
+       ${f'}_i^{op}$ & ECUMI优化的广播帧长\\
+       $T_i/T_i^{'}$ & CUMI/ECUMI在第$i$个时间帧的执行时间\\
+       $\mathcal X/\mathcal X^{'}$ & CUMI/ECUMI需要执行的时间帧数目\\
+\bottomrule
+    \end{tabular}
+  \end{center}
+\end{table}
+
+\section{现有方案及其不足}\label{Existing Art and Limitation CUMI}
+\esection{Existing Art and Limitation CUMI}
+
+\subsection{相关工作}\label{related work}
+\esubsection{related work}
+RFID技术近年来取得了长足的进步，许多优秀的RFID技术已经被提出为解决丢失标签检测，标签识别和丢失标签识别问题。在本节中，我们将回顾相关的工作，并说明其优点和不足。
+
+\textbf{（1）丢失标签检测}:
+
+大多专用的丢失标签检测协议用于简单的只包含一个标签类别的射频识别系统 。 Lin\ucite{lin2020eumd}，Yu\ucite{yu2017finding}，Zhang\ucite{zhang2020missing}等在未知标签存在的RFID 系统中检测丢失标签的存在。Lin等人\ucite{lin2020eumd}采用多哈希种子的网格表形式增加空时隙数量灭活未知标签，基于ID预测的哈希函数增加单一时隙的数量检测丢失标签。尽管单一时隙的数量在总时隙中的占比增加，但标签在相应的时隙将向阅读器传输96位的响应而不是一个简短的回应，且冲突时隙无法被利用，这将降低丢失标签检测的时间效率。Yu等人\ucite{yu2017finding}采用了两个布隆过滤器来执行丢失标签检测；第一个用于减少未知的标签数量，第二个检测丢失的标签。每个标签必须向阅读器传送多位字符串代表它在布隆过滤器中的存在或丢失。当未知标签的数量庞大而丢失标签的数量较少时，会造成丢失标签检测时间的巨大的延迟。Zhang等人设计了一种压缩布隆过滤器的方法，它可以在丢失标签检测过程中灭活未知标签。此协议结合了采样和多重哈希的方式减少帧内冲突。除了这些协议，一些现有的工作解决了多类别RFID 系统中丢失标签检测问题。例如，Chen等人\ucite{chen2017probabilistic}假设一个大规模的RFID 系统由多个类别标签组成。但他们使用多哈希逐个类别检测的方法，执行效率并没有显著的提升。
+
+\textbf{（2）经典标签识别}:
+
+经典的标签识别协议可以分为两种类型:基于Aloha的协议\ucite{lee2005enhanced,schoute1983dynamic}和基于Tree的协议\ucite{zhang2017efficient,su2018fast,myung2007tag,myung2006adaptive,su2017bit,guo2016psr}。在基于Aloha的协议中，时间帧被划分为多个时隙，一旦标签接收到来自阅读器的\texttt{Query}命令，它会随机选择一个时隙进行回复。单一时隙仅由一个标签选择，该标签可以被阅读器成功识别。标签映射到冲突时隙，由两个或多个标签选择，这些标签无法被阅读器识别并将继续在下一个时间帧内处理。当标签的数量少，识别的时间成本相对较小。但时间成本会随着标签数量的增加而增加，因为冲突时隙的概率在增加。Lee等人\ucite{lee2005enhanced}限制了每个时间帧响应标签的数量来减少广播帧的长度，但并没有真正意义的提升时隙的利用率，因此，标签识别的效率并没有显著的提升。以Tree为基础的识别协议一般思想是阅读器发送的广播字符串与标签ID前缀相符，即可被成功识别。如果发生标签冲突，查询的字符串将在末尾追加一个位(0或1)并重复查询过程。Su等人\ucite{su2017bit}提出了一比特查询协议，它将冲突标签分离为许多子集并且消除无用的询问。这个协议增加了标签识别的概率，但需要发送过多请求，降低了时间效率。Zhang 等人\ucite{zhang2017efficient} 研究了在动态RFID系统中的标签识别，并提出了新的EBD（Efficient Bit Detecting）协议。EBD可以快速识别未知标签，并同时检测系统标签是否存在，但只有未知标签与已知系统标签有相似的分布时，时间效率才会有明显的提升。
+
+\textbf{（3）丢失标签识别}:
+
+根据RFID系统中是否存在未知标签，丢失标签识别协议通常分为两种类型:完全的丢失标签标识\ucite{yu2018missing,liu2013completely,liu2014multiple,zheng2014p}和预定概率的丢失标签识别\ucite{chen2017efficient,li2013efficient,li2010identifying,shahzad2016fast}。Liu等人\ucite{liu2014multiple} 提出了一个MMTI（Multi-hashing Missing Tag Identification）协议把一个空时隙或冲突时隙转换成期望的单一时隙。标签和时隙之间的虚拟映射可以在后台服务器通过多次哈希计算获得。在虚拟映射中，通过迭代的哈希操作空时隙或者冲突时隙可以转换成期望的单一时隙，单一时隙的数量增加，更多的标签能够被识别。虽然MMTI利用多哈希方式取得非常高的时间效率，但在协议中标签必须存储位图来引导它们回复信息（ID 或存储信息）给阅读器，然而标签的存储空间有限，不能存储过多数据和进行复杂的逻辑运算，因此，对于大规模的RFID系统，MMTI仍有局限性。Liu等人\ucite{liu2013completely}将冲突时隙重构为单一时隙并消除了时间帧中的空时隙。首先，标签计算哈希函数并随机选择要发送数据时隙索引，如果它映射到一个单一时隙，则该标签能被成功识别。但是，如果它选择了冲突时隙，$m$个标签映射到此时隙，它就会计算第二个哈希函数，广播帧大小等于冲突在此时隙的标签数量$m$。 如果冲突标签被成功调和，它们将会映射到附加在此时间帧后的补充时隙。这虽然提高了时间效率，但阅读器必须发送位向量告诉冲突标签附加向量的长度。在预定概率的丢失标签识别协议中，Chen等人\ucite{chen2017efficient}消除了时间帧中的非单一时隙，灭活已识别标签和未知标签，这有助于减少冲突和协议执行时间。Shahzad等人\ucite{shahzad2016fast}估计了RFID系统中未知标签数量用以优化广播帧长，并利用多哈希的方式侦测和识别丢失标签，但是冲突时隙在识别过程中被直接废弃，导致时隙利用率低，时隙的低利用率仍然限制了协议的性能提升。
+
+\subsection{主要挑战}
+\esubsection{Challenge Issues}
+通过对现有相关工作的研究，我们可以总结出在丢失标签识别方面仍然存在着冲突时隙被完全废弃，单一时隙在时间帧中占比低，时间成本高的缺点，为提高协议执行的时间效率，我们需要解决以下三个挑战。
+
+\begin{itemize}
+  \item 首先，时隙利用率有待提升。冲突时隙被直接废弃直接降低时隙的利用率（低于$36.8\%$），如果把冲突时隙转换为有用时隙，可以大幅提高时隙利用率；
+  \item 其次，冲突时隙的可用范围有待界定。冲突时隙内冲突标签数量越多转换越困难，同时冲突转换带来高时隙利用率的同时，会额外带来时间消耗，因此冲突时隙可用的界定方法仍有很大挑战；
+ % 冲突时隙内标签越多冲突展开需要的时间消耗越大，
+  \item 最后，参数优化设置有待解决。冲突时隙的转化改变了单一时隙在时间帧中的占比，通常的参数优化设置不能实现时间消耗的最小化。
+\end{itemize}
+
+%\section{现有方案及其不足}\label{priorArtLimitation_pic}
+%\esection{Existing Art and Limitation}
+%
+%\subsection{相关工作}
+%\esubsection{Related Work}
+%
+%轮询协议是最直观的关键标签内存信息收集方案。给定关键标签集合$\mathbb{W}$，阅读器只需要依次轮询$\mathbb{W}$中的ID，每次对一个标签的信息进行采集，就能完全避免标签的干扰。
+%%
+%然而，轮询的开销是和关键标签集合的大小$w=|\mathbb{W}|$成正比的。每次轮询操作，阅读器需要广播96位的标签ID，当$w$的值过大时，通信开销过多。
+%
+%
+%为了减少轮询的开销，Qiao等人设计了一种高效的标签排序向量（TOV）来过滤无关标签\ucite{qiao2016}。TOV 利用了布隆过滤器的思想，每个关键标签的ID会通过哈希映射到TOV中的多个位置。TOV是一个概率性数据结构，因此具有一定的假阳性概率。即部分无关标签会被误认为关键标签。然而广播TOV 的开销远小于轮询标签ID的开销。TOV牺牲了一定的准确率，获取了时间效率的显著提升。虽然TOV存在假阳性错误，由于所有标签的ID都是已知的，阅读器可以计算所有所有被误认为关键标签的无关标签。因此，阅读器只需要继续轮询发生假阳性错误的标签的ID，就可以移除这些错误标签，避免收集到无关标签的信息。也就是说，TOV在不影响协议准确度的情况下，大幅度提升了过滤无关标签的时间效率，是现有方案中时间效率最高的方法。TOV 设计之初的主要目的是通过减少标签与阅读器的交互次数，降低标签的能量消耗，因此并没有专注于时间开销上的优化。
+%
+%
+%Yue等人设计了一种多阅读器下内存信息收集方法BIC协议\ucite{Yue2014}。BIC协议首先让每个标签根据哈希映射选择时隙，并在对应时隙发送1位高电平信号给阅读器，根据标签的回复，每个阅读器可以根据时隙内标签的回复情况构建一个布隆过滤器，并利用该布隆过滤器来计算其覆盖范围内的标签集合。使用BIC协议可以尽快确认每个阅读器覆盖范围内的标签集合，以便对阅读器对各自范围内的标签进行并行的读取。理论上来说，BIC协议可以用来扩展众多单阅读器下的协议，帮助它们而实现对多阅读器场景的支持。然而，BIC协议假设所有标签具有精确的时钟同步，这在实际系统中很难实现。
+%
+%\subsection{主要挑战}
+%\esubsection{Challenge Issues}
+%通过分析现有的解决方案，我们可以总结出关键标签的内存信息收集仍然有较大的提升空间，主要有以下两个挑战亟待解决
+%
+%\begin{itemize}
+%  \item 首先，无关标签的过滤效率有待提升。虽然基于布隆过滤器思想的TOV能以较高的效率过滤无关标签，但是其通信开销仍远高于理论下界。
+%  \item 其次，效率和准确度之间的权衡有待研究。高效率的概率性过滤方法往往会带来一些不可避免的误差。
+%  \item 最后，关键标签之间的冲突有待解决。在过滤掉无关标签进行关键标签信息收集的时候，如果采用标准的阿罗哈协议，将面临严重的时隙冲突，造成系统吞吐量较低（低于$36.7\%$）。
+%\end{itemize}
+
+\section{基于冲突时隙展开的丢失标签识别协议设计}\label{CUMI protocol}
+\esection{The Design of CUMI}
+
+基于冲突时隙展开的丢失标签识别（CUMI）协议包括三个阶段:\textbf{时隙选择}、\textbf{冲突时隙展开}，\textbf{丢失标签识别}。在CUMI中，我们称那些映射到相同时隙的标签为同时隙标签。我们可以将冲突时隙展开为伪单一时隙，伪单一时隙可以像真正的单一时隙一样识别标签，这样就可以提高时隙的利用率。
+
+%本节将提出用于关键标签内存数据收集的Perfect hashing-based Information Collection（PIC）协议的具体设计。PIC协议的基本思想是，首先构建关键标签和时隙一一映射的对应关系，完全解决关键标签之间的冲突。然后利用一一映射关系以及标签签名更高效率的过滤无关标签。如图\ref{overview-pic} 所示，PIC协议主要由\textbf{分配阶段}，\textbf{过滤阶段}，\textbf{轮询阶段}和\textbf{数据收集阶段}四部分组成。
+%
+%\begin{figure}[t]
+%    \setlength{\abovecaptionskip}{0pt}
+%    \setlength{\belowcaptionskip}{0pt}
+%  \centering
+%  \includegraphics[width=0.95\textwidth]{/pic/overview_pic}
+%  \bicaption[overview-pic]{}{PIC协议概览}{Fig.}{Overview of PIC Protocol}
+%\end{figure}
+
+\begin{enumerate}
+  \item 时隙选择阶段主要任务是预测每个标签在时间帧中选择的时隙位置。时隙选择采用经典ALOHA（FSA）协议，因为后台服务器存储所有待检测标签ID，因此，可以利用哈希函数预测每个标签响应阅读器的时隙位置，从预测结果可获知，每个时隙的状态（空时隙、冲突时隙、单一时隙），且冲突时隙内响应标签的数量也可预测，为下一步冲突时隙展开做准备。
+  \item 冲突时隙展开阶段主要任务是预测冲突时隙能否转换为可用的伪单一时隙。在服务器端，冲突时隙进行二次哈希运算，根据时隙选择阶段反馈的同时隙冲突标签数量设置最佳区分位长度，如果同时隙的冲突标签能够完全被区分，则此冲突时隙为伪单一时隙，且可进行下一步的丢失标签识别，如果不能完全区分，则跳过此时隙，检验下一个时隙。
+  \item 丢失标签识别阶段的主要任务是确定每个标签的状态（存在或者丢失）。此阶段验证预测的单一时隙与伪单一时隙，为节约时间，跳过空时隙与不能被转化的冲突时隙，如果预测的单一时隙或伪单一时隙变为空时隙，则可断定该时隙对应的标签丢失。
+\end{enumerate}
+
+
+%\begin{figure}[t]
+%    \setlength{\abovecaptionskip}{0pt}
+%    \setlength{\belowcaptionskip}{0pt}
+%  \centering
+%  \includegraphics[width=0.6\textwidth]{pic/assignment}
+%  \bicaption[indicator-vector-pic]{}{分配阶段指导向量$V$示意图}{Fig.}{The illustration of indicator vector $V$ in assignment stage}
+%\end{figure}
+
+\subsection{CUMI的时隙选择阶段}
+\esubsection{Assignment Phase}
+时隙选择阶段的目的是预测每个标签选择在时间帧的响应位置。我们采用经典的基于帧时隙的Aloha（FSA）协议来执行第一阶段。在每一个时间帧的开始，阅读器广播参数$\langle f_i, s_i\rangle$到标签，其中$f_i$是第$i$个时间帧中的帧时隙数量，$s_i$是第$i$个时间帧中的随机的哈希种子。接收到这些参数后，每个标签计算哈希函数$c\!=\! \mathcal {H} (ID,s_i) \!\ mod \!f_i$，$c$是标签应该响应的帧时隙索引，$\mathcal{H} (ID,s_i)\!\ mod \!f_i $随机分布在$[0,f_i -1]$中。阅读器依次执行帧时隙，当一个帧时隙完成时，阅读器传输\texttt{slot-end}终止它并启动下一个帧时隙。随之每个标签将帧时隙索引$c$ 减少$1$，一旦$c$变为$0$，标签将在即将到来的帧时隙中用一个预先设定的字符串消息响应阅读器。下文我们将展示在第二阶段冲突帧时隙展开中会使用的预定字符串消息。
+
+在冲突时隙展开阶段，有$j$个标签映射到一个帧时隙$(j\ge1)$的概率我们将其表示为$p_{ij}$。我们将这个时隙称为$j$冲突时隙，将$p_{ie}$作为时间帧中空时隙出现的概率。
+
+\vspace{-0.1in}
+\begin{small}
+\begin{equation}\label{Prob_DetectASingleMissingTag}
+\begin{aligned}
+p_{ij}=\tbinom{N_i}{j}\times \left (\frac{1}{f_i}\right)^j\times \left(1-\frac{1}{f_i}\right)^{N_i-M_i-j}
+\end{aligned}
+\end{equation}
+\end{small}
+
+\vspace{-0.1in}
+\begin{small}
+\begin{equation}\label{Prob_DetectASingleMissingTag}
+\begin{aligned}
+p_{ie}=\frac{1}{f_i} \times \left(1-\frac{1}{f_i}\right)^{N_i-M_i}
+\end{aligned}
+\end{equation}
+\end{small}
+其中$N_i$是在协议执行$(i-1)$个时间帧后仍然存活的标签数量；$M_i$是在第$i$时间帧中仍然存在的丢失标签数量。同时，阅读器向标签广播一个指示向量，通过指示向量每个标签都可以知道有多少个与自身冲突的标签（同时隙冲突标签数量）。通过存储在后台服务器的标签ID以及哈希函数，在时间帧执行前，标签与时隙的映射关系可以在后台服务器计算获取。如图~\ref{twolayers}所示，标签8、标签9和标签10映射到第$8$个时隙，这是一个$3$标签的冲突时隙，映射到第$8$个时隙的标签数量为$3$。在第$8$个时隙中每个冲突标签响应信号的长度为$3$。
+
+在丢失标签识别阶段开始时，阅读器向标签传输一个长的指示向量，它将告诉标签有多少标签映射到即将到来的时隙。指示向量$L_v$的长度是$f_i \times \lceil log_2^{x+1} \rceil$，其中$x$是映射到我们选择的一个时隙的冲突标签数量$j$的上限。但是一个标签的存储容量是有限的，例如$H3$标签可以存储$512$位的数据，也就是说，它可以存储64位数字。我们可以将整个指示向量分成许多段，每段的长度为$\frac{512}{\lceil log_2^{x+1} \rceil}$。如果$x=3$，则每个段的长度为256，因此我们可以判断256个时隙中的标签是否丢失。
+
+
+%分配阶段的目的是解决关键标签之间的冲突。阅读器会给$\mathbb{W}$ 中的每个关键标分配一个取值范围在$0$ 到$w-1$的时隙编号，并保证每个时隙内有且只有一个关键标签。
+%分配阶段由多轮组成，其基本思想是利用哈希映射对标签选择的时隙进行预测，然后发送指导向量为单一时隙内的标签分配时隙。具体来说，在任意第$i$ 轮中，阅读器首先会计算尚未分配时隙的关键标签选择的时隙，并根据结果创建一个指导向量$V_\mathrm{i}$。令$\mathbb{W}_\mathrm{i}$ 表示第$i$轮开始之前没有被分配时隙的关键标签集合。对$\mathbb{W}_\mathrm{i}$ 中的每个关键标签$ID_\mathrm{j}$，我们会使用哈希函数$H(ID_\mathrm{j},r)\mod v_{\mathrm{i}}$计算其对应的时隙，其中$r$是随机变量，$v_{\mathrm{i}}$ 是时隙的总数。指导向量$V_\mathrm{i}$ 的位数和时隙数相等，并与时隙一一对应。如果一个时隙$k$中包含一个$\mathbb{W}_\mathrm{i}$中的标签，则$V_\mathrm{i}[k]=1$。其他情况下$V_\mathrm{i}[k]=0$。
+%
+%
+%接下来，阅读器会将该时隙数$v_{\mathrm{i}}$、哈希种子数$r$、指导向量$V_\mathrm{i}$以及在前$i-1$轮已经分配的时隙数$a_\mathrm{i-1}$广播给所有标签。如图\ref{indicator-vector-pic} 所示，根据接收到的时隙数$v_{\mathrm{i}}$ 和随机数$r$参数,标签$ID_{\mathrm{j}}$ 可以使用同样的哈希函数$index_\mathrm{j}=H(ID_{\mathrm{j}},r)\mod v_{\mathrm{i}}$ 选择时隙，并检查$V_\mathrm{i}[index_\mathrm{j}]$ 是否为单一时隙。如果$V_\mathrm{i}[index_\mathrm{j}]=0$，则对应时隙$index_\mathrm{j}$是空时隙或冲突时隙；如果$V_\mathrm{i}[index_{\mathrm{j}}]=1$，则对应时隙$index_\mathrm{j}$是单一时隙。位于单一时隙内的标签，会根据$index_\mathrm{j}=s_\mathrm{j}+a_\mathrm{i-1}$计算自己被分配的时隙，其中，$s_\mathrm{j}$表示$V_\mathrm{i}[0:index_\mathrm{j}]$中`1' 的个数，$a_\mathrm{i-1}$表示在前$i-1$轮已经分配完的时隙数。已被分配时隙的标签，在接下来的分配轮次会保持静默，会忽略掉之后收到的指导向量。
+%%
+%由于知道哪些标签会被分配时隙，阅读器不需要接收标签的任何消息，就能够对未被分配时隙的关键标签集合进行更新。在下一轮，阅读器会根据更新的集合$\mathbb{W}_\mathrm{i+1}$进行时隙分配。
+%%
+%随着未被分配时隙的标签数逐渐减小，分配时隙阶段最终能够收敛结束，$W$ 中的所有元素将一一映射到包含$w=|W|$个时隙的时间帧中。
+
+\subsection{CUMI的冲突时隙展开阶段}
+\esubsection{Collision Slot unfolding}
+
+\begin{figure}[t]
+    \setlength{\abovecaptionskip}{0 pt}
+    \setlength{\belowcaptionskip}{0pt}
+  \centering
+  \includegraphics[width=0.4\textwidth]{Manchester}
+  \bicaption[Manchester]{}{曼彻斯特编码举例}{Fig.}{Example of Manchester Code.}
+\end{figure}
+
+
+为了将冲突时隙转换为可用的时隙，我们设计了时隙哈希方法来展开冲突时隙并确定是否可以区分冲突时隙内的所有冲突标签。时隙哈希基于曼彻斯特定理，如图~\ref{Manchester}所示。标签1的响应字符串为$(010011010)_2$，标签2回复阅读器问询的信息为$(101010010)_2$，标签3的响应为$(011001100)_2$。曼彻斯特定理采用位或的操作，因此，阅读器得到$(111011110)_2$的混合信号。
+
+根据预测时隙的状况，我们可以获知每个时隙中标签的数量，我们可以开始理解如何展开冲突帧时隙并区分冲突标签，这是本章的关键贡献。
+
+在开始时隙哈希之前，每个标签都知道它在第一阶段应该选择哪个帧时隙，以及有多少标签应该映射到此时隙。冲突时隙内每个标签执行第二个阶段时，首先计算$d\!=\! \mathcal {H} (ID,s_i) \!\ mod  \!v_k $，哈希函数$\!\mathcal{H}(.)$和时隙哈希种子$s_i$与协议第一阶段中设置相同，但$v_k$与广播帧大小$f_i$不同。我们将一个时隙中的冲突标签数量作为时隙区分位的长度，并将其表示为$v_k, k\in [0,f_i-1]$，其中$k$是时间帧中的第$k$个时隙。为了区分同时隙的冲突标签，每个标签回复$v_k$位二进制字符串响应阅读器问询。在$v_k$位字符串中，只有第$d$位是$1$，所有其他$v_k-1$位都是$0$。但是并不是所有的冲突时隙都可以用来识别当前的标签是存在还是丢失，例如，在图~\ref{twolayers}中，第二个时隙内标签不能被区分，因为两个标签响应的是相同的二进制字符串$(10)_2$。然而在第$4$个时隙中也有两个标签映射，一个标签响应字符串$(01)_2$给阅读器，另一个响应$(10)_2$，它们的混合信号为$(11)_2$，这两个标签可以被区分，所以此时隙可以用来识别标签是否丢失。
+
+我们计算一个帧时隙有$j$个标签且该帧时隙能被使用的概率$p_{ij}^u$如下:
+\vspace{-0.1in}
+\begin{small}
+\begin{equation}\label{Prob_DetectASingleMissingTag}
+\begin{aligned}
+p_{ij}^u=p_{ij} \times \frac{j!}{v_{k}^j}
+=\tbinom{N_i}{j}\times\frac{1}{f_i^j} \times e^{-\frac{N_i-M_i-j}{f_i}} \times \frac{j!}{j^j}
+\end{aligned}
+\end{equation}
+\end{small}
+
+在时间帧中，$j$冲突时隙能被使用的数量$f_{ij}^u$计算如下：
+\vspace{-0.1in}
+\begin{small}
+\begin{equation}\label{Prob_DetectASingleMissingTag}
+\begin{aligned}
+f_{ij}^u=f_i\times p_{ij}^u.
+\end{aligned}
+\end{equation}
+\end{small}
+
+对应$j$冲突时隙，由阅读器发送给标签的二进制指示向量的长度$L_{ij}^u$如下所示:
+\vspace{-0.1in}
+\begin{small}
+\begin{equation}\label{Prob_DetectASingleMissingTag}
+\begin{aligned}
+L_{ij}^u=f_i\times j\times p_{ij}^u.
+\end{aligned}
+\end{equation}
+\end{small}
+
+在一个时间帧中，可用的时隙数量$f_{iu}^u$如下所示:
+\vspace{0in}
+\begin{small}
+\begin{equation}\label{Prob_DetectASingleMissingTag}
+\begin{aligned}
+f_{iu}^u=\sum_{j=1}^{x} f_{ij}^u.
+\end{aligned}
+\end{equation}
+\end{small}
+
+
+下面的内容我们将解释$x$的设置以及我们取$j$的值从$1$连续到$x$的原因。在第$i$个时间帧中能够被识别的标签的数量$n_i$(包括现有标签和丢失标签)可以计算如下:
+\vspace{-0.1in}
+\begin{small}
+\begin{equation}\label{Numberni}
+\begin{aligned}
+n_i=\sum_{j=1}^{x}j\times f_i\times \tbinom{N_i}{j}\times \frac{1}{f_i^j} \times e^{-\frac{N_i-M_i-j}{f_i}} \times \frac{j!}{j^j}\\
+=\sum_{j=1}^{x}j\times \frac{1}{f_i^{j-1}}\times \tbinom{N_i}{j}\times e^{-\frac{N_i-M_i-j}{f_i}} \times \frac{j!}{j^j}.
+\end{aligned}
+\end{equation}
+\end{small}
+
+根据上面的讨论，我们可以计算第$i$个时间帧执行所需要的时间开销$T_i$为
+\vspace{-0.1in}
+\begin{small}
+\begin{equation}\label{Prob_DetectASingleMissingTag}
+\begin{aligned}
+T_i=  f_{i} \times \lceil log_2^{x+1}\rceil \times \tau_p +\sum_{j=1}^{x} f_{ij}^u \times (\tau_w +j\times \tau_d).
+\end{aligned}
+\end{equation}
+\end{small}
+
+时间开销$T_i$忽略了参数传输的时间。$f_{i} \times \lceil log_2^{x+1}\rceil \times \tau_p$为阅读器传输指示向量的时间。$\sum_{j=1}^{x} f_{ij} \times (\tau_w +j\times \tau_d)$是标签向阅读器回复数据的时间。单个标签被识别所需要的时间$t_i$表示如下:
+\vspace{0in}
+\begin{small}
+\begin{equation}\label{Prob_DetectASingleMissingTag}
+\begin{aligned}
+t_i= \frac{T_i}{n_i}.
+\end{aligned}
+\end{equation}
+\end{small}
+%虽然我们在分配阶段利用指导向量保证了每个关键标签映射到了不同的时隙，从而解决了他们之间的冲突。但是大量的无关标签也会被分配时隙，导致每个时隙通常含有一个关键标签以及若干的无关标签。如果直接让标签们按分配时隙向阅读器传送数据，将会面临严重的信息冲突。因此，我们需要在过滤阶段排除无关标签的干扰。
+%%
+%在过滤阶段，阅读器会广播最小完美哈希过滤器（Minimal Perfect Hashing Filtering，MPHF）来高效率的过滤无关标签，防止他们对收集关键标签信息的干扰。根本上来说MPHF 是一个包含$w$ 个签名的过滤器，每个签名长度为$d$位，并与关键标签一一对应。签名是用签名生成函数$F(\cdot)$生成，关键标签的ID 作为函数的参数。常见的签名函数包括，均匀哈希，ID切片，以及循环校验码。阅读器会在接下来的帧长为$w$的时间帧中，按时隙顺序广播关键标签的签名。如果时隙编号为$x$ 的标签发现第$x$个签名与自身根据$F(\cdot)$生成的签名不一致，它会意识到自己是一个无关标签，并转入静默状态不再向阅读器传输数据。只有签名位数足够长时，才能够保证大部分无关标签和关键标签有不一样的签名，从而能在这一阶段被成功过滤。
+\begin{asparaenum}
+\item\textbf{最优$x$值设定:}
+\begin{figure}[t]
+    \setlength{\abovecaptionskip}{0 pt}
+    \setlength{\belowcaptionskip}{0pt}
+  \centering
+  \includegraphics[width=0.5\textwidth]{ET}
+  \bicaption[ET]{}{当$x$和$f$值增加时，ET值的变化}{Fig.}{ The Value of ET when x and f is Increasing.}
+\end{figure}
+
+\begin{figure}[t]
+    \setlength{\abovecaptionskip}{0 pt}
+    \setlength{\belowcaptionskip}{0pt}
+  \centering
+  \includegraphics[width=0.5\textwidth]{XChoice}
+  \bicaption[XChoice]{}{当$x$增加时，一个标签被识别需要的时间开销}{Fig.}{ The Value of ET when x and f is Increasing.}
+\end{figure}
+
+\begin{figure}[t]
+    \setlength{\abovecaptionskip}{0 pt}
+    \setlength{\belowcaptionskip}{0pt}
+  \centering
+  \includegraphics[width=0.5\textwidth]{fchoice}
+  \bicaption[fchoice]{}{CUMI执行时最优的广播帧长}{Fig.}{The Choice of Optimal Broadcast Frame Size in CUMI.}
+\end{figure}
+
+在这一节中，我们引入一个名词“帧时隙识别能力”来介绍$x$的选择，它是$j$的最大值。一个帧时隙可以识别的标签数量称为帧时隙识别能力$S_{ja}$。
+\vspace{0in}
+\begin{small}
+\begin{equation}\label{SlotAbility}
+\begin{aligned}
+S_{ja}=\frac{j^2\times f_{i} \times p_{ij} \times \frac{1}{j} \times (1-\frac{1}{j})^{j-1}}{f_i \times p_{ij}}
+\ge j\times \frac{j!}{j^j}.
+\end{aligned}
+\end{equation}
+\end{small}
+
+为了简化CUMI，我们忽略了丢失标签数量$M_i$的影响，$M_i$远小于$N_i$。在CUMI中，我们只考虑完全展开的冲突时隙。如图~\ref{UnfoldingCollisionslot} 所示，第二个时隙位被废弃，而第四个时隙可用。从公式~\ref{SlotAbility}可以观察到，当$j\ge2$，$S_{ja}$是一个关于$j$的单调递减函数，且$S_{1a}$=$S_{2a}$=1。所以选择$j$是从$1$到$x$的连续累积。
+
+\vspace{0in}
+\begin{small}
+\begin{equation}\label{ET}
+\begin{aligned}
+ET=\lvert \log_2{t}\lvert.
+\end{aligned}
+\end{equation}
+\end{small}
+
+我们枚举$N$，$f$和$x$的值。由于$t$太小无法区分，我们采用符号$ET$来评估$t$随$f$和$x$的变化而改变的过程。通过枚举可以观察到，当x的值为3 时，$t$ 是最小值。例如，当N取值10000时，我们枚举$f$的值从$\frac{N}{10}$到$2N$，枚举$x$的值从$1$到$9$，则$t$的值变化如图~\ref{XChoice}所示，当$x$ 从$1$到$9$时，对应的$t$值分别为$0.424ms$、$0.382ms$、$0.334ms$、$0.374ms$、$0.368ms$、$0.366ms$、$0.423ms$、$0.423ms$。$0.334ms$ 是$t$ 的最小值，此时，$x=3$， $f=4270$。
+
+\item\textbf{最优$f_i^{op}$值设定:}
+
+当求$f_i^{op}$时，通过计算$t_i$对$f_i$的偏导数复杂度太高，为了简化求解过程，我们采用了归纳总结的方法。为了找到最优的$f_{i}^{op}$，我们将$x$的值设为$3$，并将$N$设置为$10000$到$20000$，每次增加1000，最优的$f_1^{op}$分别为$4270$、$4690$、$5120$、$5540$、$5970$、$6390$、$6820$、$7240$、$7670$、$8090$和$8520$。计算结果$f_{1}^{op}$如图~\ref{fchoice}所示。我们可以得到$f_{1}$和$N$之间的关系。
+\vspace{0in}
+\begin{small}
+\begin{equation}\label{fisetting1}
+\begin{aligned}
+f_1^{op}=0.4263\times N.
+\end{aligned}
+\end{equation}
+\end{small}
+
+当我们将$x$设为$3$时，$t_i$的值取决于$f_i$的值。因此，我们可以得出$f_i$和$N_i$是线性关系。
+\vspace{0in}
+\begin{small}
+\begin{equation}\label{fisetting2}
+\begin{aligned}
+f_i^{op}=0.4263\times N_i.
+\end{aligned}
+\end{equation}
+\end{small}
+
+此时，我们可以发现CUMI中的$f_i^{op}$远小于MMTI，在MMTI中，$f_i^{op}=N_i$。
+\end{asparaenum}
+
+\subsection{CUMI的丢失标签识别阶段}
+\esubsection{Missing Tag Identification}
+\begin{figure}[t]
+    \setlength{\abovecaptionskip}{0 pt}
+    \setlength{\belowcaptionskip}{0pt}
+  \centering
+  \includegraphics[width=0.5\textwidth]{twolayers}
+  \bicaption[twolayers]{}{举例CUMI}{Fig.}{Example of CUMI.}
+\end{figure}
+\begin{figure}[t]
+    \setlength{\abovecaptionskip}{0 pt}
+    \setlength{\belowcaptionskip}{0pt}
+  \centering
+  \includegraphics[width=0.35\textwidth]{UnfoldingCollisionslot}
+  \bicaption[UnfoldingCollisionslot]{}{举例说明CUMI中废弃帧槽与可用帧槽}{Fig.}{Example of Abandoned Slot and Usable Slot in CUMI.}
+\end{figure}
+参数设置完成后，我们将进行丢失标签识别阶段。通过比较期望映射向量$Ev$和实际映射向量$Av$，我们可以确定标签是否存在。如图~\ref{twolayers}和图~\ref{UnfoldingCollisionslot}所示，我们将$x$设为$2$，空时隙和超过$2$个标签的冲突时隙被丢弃，只有单一时隙和$2$个标签的冲突时隙可用。从第二个时隙中我们可以观察到有两个标签选择第二个时隙，它们都向阅读器响应字符串$(10)_2$，阅读器收到混合信号$(10)_2$，我们无法从混合信号中区分冲突标签。但是，在第四个时隙中，两个标签选择第四个时隙，一个标签向阅读器回复字符串$(10)_2$，另一个响应$(01)_2$。在期望向量中，混合信号为$(11)_2$，但标签4丢失，因此，我们得到的实际信号为$(10)_2$。因此，我们可以断定标签4丢失，它应该向阅读器响应$(01)_2$，而另一个标签存在，它向阅读器响应$(10)_2$。在单一时隙中，如果响应信号在$Av$中为$1$，我们可以确定标签存在，如果没有，则该标签丢失。为了避免已确认标签的干扰，阅读器将向已识别的标签发送灭活命令，它们将不参与下一个时间帧的识别。
+
+%\item\textbf{CUMI协议执行帧数量$\mathcal X$}：
+
+在CUMI中，需要多个时间帧$\mathcal X$来完全识别丢失的标签。
+\vspace{0in}
+\begin{small}
+\begin{equation}\label{rounds1}
+\begin{aligned}
+N=\sum_{i=1}^{\mathcal X} n_i.
+\end{aligned}
+\end{equation}
+\end{small}
+
+观察Eq.~\ref{Numberni}和Eq.~\ref{fisetting2}，$f_i^{op}$和$\mathcal X$我们都已知道，最优的$\mathcal X$是由枚举产生的，设为$3$，所以我们可以根据Eq.~\ref{rounds1}计算帧数。
+
+\begin{table}[t]
+	\centering
+    \bicaption[tab:Idonframes]{}{CUMI执行时不同的N值需要的时间帧数量$\mathcal{X}$}
+    {Tab.}{The frames $\mathcal{X}$ are needed with different $N$ when we perform CUMI}
+	\begin{tabular}{cccccc}
+		\hline
+		% after \\: \hline or \cline{col1-col2} \cline{col3-col4} ...
+		协议/标签数量  & 10000 & 30000 & 50000 & 70000 & 90000 \\
+		\hline
+		CUMI & 30 & 34 & 35 & 36 & 37 \\
+	
+		\hline
+	\end{tabular}
+\end{table}
+
+从表~\ref{tab:Idonframes}中，我们可以观察到，当标签数为$10000$时，帧数为$30$。当标签$N$的数量增加时，帧数不会显著增加。
+
+%虽然一个较长的签名可以保证大部分的无关标签能够被成功的过滤，但是由于MPHF是个概率性的数据结构，我们很难保证所有的标签具有独一无二的签名，因此签名冲突难以避免。
+%%
+%签名冲突会导致少部分无关标签不能被成功过滤，干扰到关键标签的信息收集。轮询阶段的目的就是通过轮询这些未过滤的无关标签，以减少他们对关键标签信息收集的干扰。
+%%
+%由于已知所有标签的ID，以及过滤阶段使用的参数，服务器可以计算每个标签被分配的时隙位置。又因为已知道标签所使用的签名生成函数$F(\cdot)$，服务器可以计算每个标签的签名。
+%%
+%根据这两组信息，服务器可以发现所有的未被过滤的无关标签。具体来说，如果一个无关标签与同一时隙的关键标签具有相同的签名，则该无关标签没有被过滤。
+%%
+%阅读器会依次广播这些未过滤无关标签的ID。如果一个标签发现阅读器在广播自己的ID，它就会意识到自己是个无关标签，并转变成非活跃状态，不再接收阅读器的命令，也不再向阅读器发送消息。
+
+
+%\subsection{数据收集阶段}
+%\esubsection{Data Collection Phase}
+%最终的数据收集阶段，阅读器会采用一个改进的多时隙Aloha协议来收集关键标签的数据。
+%%
+%首先阅读器需要发送\texttt{Query}命令，初始化一个具有$w$个时隙的时间帧。
+%%
+%当收到\texttt{Query}命令后，标签会将第一阶段分配给它的时隙数加载到到时隙计数器$sc$中。
+%%
+%当$sc$等于0时，标签会立即向阅阅读器传输请求的数据信息。
+%%
+%因为第一个阶段，解决了关键标签之间的冲突；第二、三阶段解决了无关标签对关键标签的干扰。
+%%
+%在数据收集阶段的每个时隙中都是单一时隙，没有冲突发生，所有的数据能够被阅读器成功采集。
+%%
+%在时隙结束时，阅读器会广播一个\texttt{QueryRep}命令，来更新标签的时隙计数器$sc=sc-1$。
+%%
+%一旦更新后计数器的值为$0$，标签会立即向阅读器发送数据。
+%
+%
+%总而言之，在分配阶段后，$w$个关键标签和$w$时隙之间构成了一个一一映射的关系。
+%%
+%在过滤阶段后，大部分无关标签被MPHF过滤。只有一小部分签名相同的标签，由于MPHF的假阳性错误依旧保持活动状态。
+%%
+%在轮询阶段后，所有的无关标签都被过滤。因此，在最后的数据收集阶段，阅读器可以无冲突的收集关键标签传输的数据。
+%%
+%由于前几个阶段完全解决了关键标签和无关标签之间的冲突，信息收集阶段理论上的时隙利用率是100\%，大大提升了关键标签内存信息收集的效率。
+%
+%\begin{figure}[t]
+%    \setlength{\abovecaptionskip}{0pt}
+%    \setlength{\belowcaptionskip}{0pt}
+%  \centering
+%  \includegraphics[width=0.6\textwidth]{pic/mappingexample}
+%  \bicaption[assignment-example-pic]{}{举例说明分配阶段的执行过程}{Fig.}{Exemplifying the process of the assignment phase}
+%\end{figure}
+%
+%\subsection{PIC协议执行样例}
+%\esubsection{Illustrative Example of PIC}
+%为了更好的理解PIC协议，我们通过一个例子来介绍PIC协议的执行过程。在这个例子中，我们有10个标签$\mathbb{U}=\{id_\mathrm{1}, id_\mathrm{2}, \cdots, id_\mathrm{10}\}$，其中有4个是这次查询的目标，即对应的关键标签$\mathbb{W}=\{id_\mathrm{1}, id_\mathrm{4}, id_\mathrm{6}, id_\mathrm{9}\}$。 如图\ref{assignment-example-pic}所示，本例中的分配阶段包含三轮，在每一轮中，阅读器首先会根据未分配的关键标签创建一个指导向量。在第一轮中，指导向量$V_\mathrm{1}$的长度为4，每个关键标签$id_{\mathrm{i}}$ 根据哈希函数的结果被映射到指导向量的第$H(id_{\mathrm{i}},r)\mod 4$的位置。当全部关键标签完成映射以后，因为只有$id_\mathrm{9}$映射到$V_\mathrm{1}$的第二位，因此对应位的值为`1'。其余位置没有或者包含多个关键标签，因此对应位的值设置为`0'。阅读器会将$V_\mathrm{1}$，以及参数$a=0, v_\mathrm{1}=4$ 广播给所有的标签。关键标签$id_\mathrm{9}$使用相同的函数函数和参数，发现自己被映射的时隙状态到$V_\mathrm{1}[1]=1$，$id_\mathrm{9}$会通过$a+s$计算自己被分配的时隙编号。因为之前轮次没有被分配时隙的标签并且$V_\mathrm{1}$的第二位之前没有其他`1`，于是标签$id_\mathrm{9}$根据$(a+s)=(0+0)$计算发现其对应的时隙编号为0。于此同时，其他标签$id_\mathrm{1}$, $id_\mathrm{4}$, and $id_\mathrm{6}$发现自己在$V_\mathrm{1}$中映射的位置为`0'。因此会接着参加第二轮的分配。在第二轮中$id_\mathrm{1}$ 因为映射到$V_\mathrm{2}$中的`1'，而被成功分配时隙$(a+s)=(1+0)=1$。剩余的标签$id_\mathrm{4}$和$id_\mathrm{6}$会参加第三轮的分配阶段，这一次，两个标签都被映射到$V_\mathrm{3}$ 中的`1'。 因此都会被分配时隙。由于在之前已经有两个标签$id_\mathrm{9}$和$id_\mathrm{1}$被分配时隙，这一轮中的$a=2$。 因为$id_\mathrm{4}$映射到$V_\mathrm{3}$的第一个位置，在它之前没有其他的`1'，因此其对应的时隙编号为$(a+x)=(2+0)=2$。类似的$id_\mathrm{6}$被映射到$V_\mathrm{3}$ 的第二个位置，在它之前有一个`1'，因此对应的时隙编号是$(a+x)=(2+1)=3$。
+%
+%\begin{figure}[t]
+%    \setlength{\abovecaptionskip}{0pt}
+%    \setlength{\belowcaptionskip}{0pt}
+%  \centering
+%  \includegraphics[width=0.6\textwidth]{pic/mappingalltags}
+%  \bicaption[assignment-result-pic]{}{$\mathbb{U}$中标签最终的映射结果}{Fig.}{The mapping results between $\mathbb{U}$ and slots}
+%\end{figure}
+%
+%\begin{table}[htbp]
+%  \begin{center}
+%\bicaption[NotationTable_Tag_Fingerprint]{}{标签和它的签名}
+%{Tab.}{The signature string of each tag}
+%    \begin{tabular}{llll}
+%    \toprule
+%       \textbf{标签} & \textbf{签名}& \textbf{标签} & \textbf{签名}\\
+%     \midrule
+%			$id_1$ & 1111 & $id_6$ & 1101  \\
+%			$id_2$ & 0001 & $id_7$ & 1111  \\
+%			$id_3$ & 0010 & $id_8$ & 1110  \\
+%			$id_4$ & 1100 & $id_9$ & 0101  \\
+%			$id_5$ & 0001 & $id_{10}$ & 1011 \\
+%    \bottomrule
+%    \end{tabular}
+%  \end{center}
+%\end{table}
+%
+%
+%
+%
+%需要注意的是，无关标签在这个阶段也会接收到$V_\mathrm{1}$， $V_\mathrm{2}$ and $V_\mathrm{3}$，因此也会被指导向量分配到相应的时隙。我们省略了类似的无关标签的映射过程，需要记住的是，它们同样被分配到各个时隙。最终的映射结果如果图\ref{assignment-result-pic}所示，每个时隙有且仅有包含一个关键标签，但是可能包任意多个无关标签。因此，阅读器需要创建MPHF 来过滤这些无关标签。表\ref{NotationTable_Tag_Fingerprint}给出了所有标签的签名，根据签名创建的MPHF如图\ref{mphf-pic}所示，包含4 个元素，每个元素对应一个4位的关键标签的签名。阅读器会按时隙的排序，依次广播关键标签$id_\mathrm{9}\rightarrow id_\mathrm{1}\rightarrow id_\mathrm{4}\rightarrow id_\mathrm{6}$的签名。通过比较自身的签名和阅读器广播地签名是否一致，标签可以判断自己是否为关键标签。具体来说，阅读器会首先广播第一个时隙中关键标签$id_\mathrm{9}$对应的签名`1011'，和$id_\mathrm{9}$ 映射到同一时隙的$id_\mathrm{8}$会发现自身签名`1110'与阅读器广播的签名不一致，因此得知自己是个无关标签，应该被静默。接下来阅读器广播第二个时隙中关键标签$id_1$ 对应的签名`1111'，同一时隙无关标签$id_\mathrm{2}$和$id_\mathrm{3}$会因为签名不一致被过滤。同样的，在接下来的第三和第四个时隙中无关标签$id_\mathrm{7}$，$id_\mathrm{5}$ 和 $id_{10}$都会因为签名和阅读器广播的签名不一致而被过滤。至此，只有4 个关键标签处于活跃状态。我们可以跳过轮询阶段，直接进入信息收集阶段对标签信息进行读取。活跃的标签会在被分配的时隙中向阅读器传送自己的数据。因为在之前已经解决了标签间的冲突，因此在信息收集阶段理论上的时隙的利用率是百分之百。
+%
+%\begin{figure}[t]
+%    \setlength{\abovecaptionskip}{0pt}
+%    \setlength{\belowcaptionskip}{0pt}
+%  \centering
+%  \includegraphics[width=0.6\textwidth]{pic/mphf}
+%  \bicaption[mphf-pic]{}{包含四个时隙的MPHF的示意图}{Fig.}{The MPHF consists of four slots}
+%\end{figure}
+
+\section{增强型基于冲突时隙展开的丢失标签识别协议}\label{ECUMI}
+\esection{ECUMI}
+在CUMI中，阅读器需要向标签传输一个长指示向量，指示向量告诉标签同时的标签数量$v_k$。如果我们选择$x$为$3$，最优广播帧大小为$f_i^{op}$，则指示向量的长度为$f_i^{op} \times  \lceil log_2^{x+1} \rceil=2\times f_i^{op}$。减少指示向量的长度是减少丢失标签识别时间成本的有效方法。因此，我们设计了一个增强的ECUMI协议。与CUMI一样，ECUMI（Enhanced Collision Unfolding-based Missing tag Identification）由三个阶段组成:时隙选择、冲突时隙展开和丢失标签识别。
+
+%我们发现，分配阶段指导向量的长度$v$和过滤阶段标签签名长度$d$是影响传输代价的两个关键因素。因此，在本小节中我们主要通过设置合适的$v$ 和$d$来最小化传输代价。
+\begin{figure}[t]
+    \setlength{\abovecaptionskip}{0 pt}
+    \setlength{\belowcaptionskip}{0pt}
+  \centering
+  \includegraphics[width=0.5\textwidth]{ECUMIxchoice}
+  \bicaption[ECUMIxchoice]{}{一个时间帧ECUMI识别标签的效率}{Fig.}{The Identification Efficiency of ECUMI Crossing the Whole Frame.}
+\end{figure}
+
+\subsection{ECUMI的时隙选择阶段}
+\esubsection{Slot Choice}
+此阶段与CUMI中的时隙选择阶段相同，阅读器将广播帧大小和随机哈希种子发送给标签，标签接收查询命令，根据哈希函数选择自己的时隙。但在ECUMI 中，我们将一个时隙中的标签数量表示为$j$，根据这个值，时隙可以分为两种类型:废弃时隙和可用时隙。$j$的值从$1$到$x'$。假如该时隙中的标签都可以被识别，我们将其称为可用时隙，其中标签以$x'$ 比特二进制字符串响应给阅读器。其余的时隙都是废弃时隙，这些时隙中的标签不响应阅读器的问询。为了区分这两种时隙类型，我们标记$0$表示废弃时隙，标记$1$表示可用时隙。因此，阅读器需要将包含$f_i^{'}$位的指示向量传输给标签。
+
+一个时间帧内$j$冲突时隙的概率计算如下:
+\vspace{0in}
+\begin{small}
+\begin{equation}\label{Prob_DetectASingleMissingTag}
+\begin{aligned}
+P_{ij}^{'}=\tbinom{N_i}{j} \left(\frac{1}{f_i^{'}}\right)^j\times \left(1-\frac{1}{f_i^{'}}\right)^{N_i-M_i-j}.
+\end{aligned}
+\end{equation}
+\end{small}
+
+\subsection{ECUMI的冲突时隙展开阶段}
+\esubsection{Unfolding Collision Slot}
+\esubsection{Time Efficiency Comparison}
+\begin{figure}[t]
+    \setlength{\abovecaptionskip}{0 pt}
+    \setlength{\belowcaptionskip}{0pt}
+  \centering
+  \includegraphics[width=0.5\textwidth]{2Unfoldcollisionslot}
+  \bicaption[2Unfoldcollisionslot]{}{ECUMI中废弃帧槽与可用帧槽举例}{Fig.}{Example of Abandoned Slot and Usable Slot in ECUMI.}
+\end{figure}
+
+在这个阶段，我们将把部分冲突时隙转换为可用的时隙。在以往的丢失标签识别研究中，只有单一时隙可以用来识别当前标签和丢失标签。ECUMI可以展开冲突时隙，并使其中的一部分用于丢失标签识别的目的。但CUMI根据一个时隙中的标签数量调整时隙$f$的值，而ECUMI将使用相同的时隙$f$来设置可用时隙中的标签。ECUMI传输的指示向量比CUMI短。如图~\ref{2Unfoldcollisionslot}所示，每个时隙$f$有用1比特来区分废弃时隙和可用时隙。我们假设$x'$为$3$，也就是说，每个标签在预测的时隙向阅读器响应$3$位长度的字符串。标签1和标签2都向阅读器响应$(001)_2$，因此它们的组合信号为$(001)_2$，这意味着我们无法识别它们并确定它们在组合信号中是存在还是丢失。但是标签3和标签4映射到一个时隙，标签3响应$(001)_2$给阅读器，标签4响应$(010)_2$给阅读器，因此我们可以通过组合信号$(011)_2$来区分两个标签。因此，对应的时隙是可用时隙。如果标签4缺失，则阅读器接收到的信号为$(001)_2$，通过比较预测时隙混合信号$(011)_2$和实际接收到的信号$(001)_2$的组合信号，可以确定标签4丢失，而标签3存在。标签5映射到一个单一时隙，该单一时隙是可用的，并且在预测的时隙接收到的信号是$(100)_2$，但是读取器在实际的时隙中接收到$(000)_2$，因此我们确定标签5丢失了。
+
+$j$冲突时隙中一个标签被区分的概率计算如下:
+\vspace{-0.05in}
+\begin{small}
+\begin{equation}\label{ProbabilityEmpty}
+\begin{aligned}
+p_{ij}^{'}=j\times P_{ij}^{'} \times \frac{1}{ x^{'}} \times \left(1-\frac{1}{ x^{'}}\right)^{j-1}
+\ge P_{ij}^{'} \times \frac{\tbinom{x^{'}}{j} \times j!}{x^{'j}}.
+\end{aligned}
+\end{equation}
+\end{small}
+在这里，我们可以识别$r$个标签$(r=j\times p_{ij}^{'}, 0\le r\le j)$，但为了简化ECUMI，我们只考虑能够完全展开的时隙。因此，只要一个标签映射到一个可用的时隙，该标签将在丢失标签识别阶段被识别。时间帧$f_i^{'}$中的可用时隙数量$S_i$可以计算如下:
+\begin{small}
+\begin{equation}\label{slotnumber}
+\begin{aligned}
+S_i=\sum_{j=1}^{x^{'}} f_i^{'} \times P_{ij}^{'}\times \frac{\tbinom{x^{'}}{j} \times j!}{x^{'j}}
+\end{aligned}
+\end{equation}
+\end{small}
+
+第$i$个时间帧中，能够被识别的存在标签和丢失标签的数量$n_i^{'}$计算如下:
+\begin{small}
+\begin{equation}\label{identificationtag}
+\begin{aligned}
+n_i^{'}=\sum_{j=1}^{x^{'}}j\times f_i^{'}\times P_{ij}^{'} \times \frac{\tbinom{x^{'}}{j} \times j!}{x^{'j}}
+\end{aligned}
+\end{equation}
+\end{small}
+
+$x'$的设置将在下文介绍。综上所述，执行单个时间帧的时间代价$T_i^{'}$可计算如下:
+\vspace{-0.1in}
+\begin{small}
+\begin{equation}\label{ECUMItime}
+\begin{aligned}
+T_i^{'}= f_i^{'}\times \tau_p +S_i \times (\tau_w +x^{'}\times \tau_d)
+\end{aligned}
+\end{equation}
+\end{small}
+
+因此，ECUMI识别一个存在标签或丢失标签的时间成本$t_i^{'}$计算如下:
+\begin{small}
+\begin{equation}\label{ECUMIonetagtime}
+\begin{aligned}
+t_i^{'}=\frac{T_i^{'}}{n_i}
+\end{aligned}
+\end{equation}
+\end{small}
+%
+
+\begin{asparaenum}
+\setlength{\itemindent}{2em}
+\item\textbf{$x'$值的优化设置:}
+
+从Eq.~\ref{slotnumber}可以观察到，$x'$越大，每个时间帧内时隙的利用率就越高。例如，我们将标签的数量设置为$10000$，而丢失标签的数量设置为$10$。改变广播帧大小$f_1^{'}$，我们可以获得ECUMI中可用时隙的变化。在本节中，我们将$x'$的值设置为$3$。如表~\ref{tab:usablef}所示，我们比较了CUMI、ECUMI、MMTI和ERMI中的可用时隙数量。当广播帧大小为$15000$时，可用时隙数分别为$6075$、$6360$、$5134$和$5134$。时隙的利用率分别为$40.5\%$，$42.4\%$，$34.2\%$和$34.2\%$。时隙利用率最高的是ECUMI。我们改变广播帧大小，包括$15000$，$13000$，$10000$，$8000$，$5000$和$3000$。ECUMI的时隙利用率分别为$42.4\%$、$45.6\%$、$50.4\%$、$52.8\%$、$49.1\%$和$30\%$。我们可以得出结论，广播帧的最优值是存在的，其计算将在下面的内容中给出。
+
+ECUMI中$x'$最优值的计算与CUMI相同，我们改变$N$、$f'$和$x'$的值，通过枚举，我们观察到$t'$随着$x'$的增加而减少。也就是说，$x'$的值越大，$t'$ 的值就越小。如图~\ref{ECUMIxchoice}所示，我们设置标签的数量$N'$为$10000$，丢失标签的数量为$10$，$f'$的值从$1000$到$100000$，我们列举$x'$从$1$到$40$。我们发现$x'$越大，丢失标签识别的时间效率越高。但是$x'$越大，来自标签的响应字符串就会越长，如果我们将$x'$设为$100$，每个标记都会响应一个长度为$100$的二进制字符串。由于空气中含有丰富的电磁能量，电磁环境会在标签的响应中造成通信误差。虽然通过CRC（循环冗余检查）能够发现通信错误，但阅读器将要求发送两次或两次以上的响应字符串，这将大大增加时间开销。从图~\ref{ECUMIxchoice}可以观察到，当$x \geq 10$时，识别一个标签的时间成本下降很小，因此我们将最优$x$设置为$10$。
+
+\item\textbf{$f_i^{'op}$值的优化设置:}
+
+\begin{table}[t]
+	\centering
+    \bicaption[tab:usablef]{}{当$N=10000$时改变 $f$可用时隙的数量}
+    {Tab.}{The number of usable slots with different $f$ when $N=10000$}
+	\begin{tabular}{ccccccc}
+		\hline
+		% after \\: \hline or \cline{col1-col2} \cline{col3-col4} ...
+		协议/时间帧  & 15000 & 13000 & 10000 & 8000 & 5000  & 3000 \\
+		\hline
+		CUMI &$6075$&$5627$&$4735$&$3926$&$2231$&$801$ \\ \hline
+ECUMI &$6360$&$5924$&$5042$&$4225$&$2456$&$900$ \\ \hline
+MMTI &$5134$&$4634$&$3679$&$2865$&$1353$&$357$ \\ \hline
+ERMI &$5134$&$4634$&$3679$&$2865$&$1353$&$357$ \\ \hline
+	
+		\hline
+	\end{tabular}
+\end{table}
+
+应用求导的方法很难寻找最优的$f_i^{'}$以确保$t_i^{'}$最小。因此，我们同样采用了归纳总结的方法。这里，我们将$x^{'}$的值设置为$10$，以减少阅读器和标签之间通信时误码率的影响。标签$N$的数量设置分别从$10000$到$20000$，增加一次为$1000$。最优广播帧尺寸分别为$2341$、$2575$、$2808$、$3042$、$3276$、$3509$、$3743$、$3977$、$4210$、$4444$和$4678$。利用线性回归方法，总结了$f_1^{'op}$和$N$之间的关系。
+\vspace{0.1in}
+\begin{small}
+\begin{equation}\label{SlotAbility1}
+\begin{aligned}
+f_1^{'op}=0.2341\times N,
+\end{aligned}
+\end{equation}
+\end{small}
+
+\vspace{-0.5in}
+\begin{small}
+\begin{equation}\label{SlotAbility2}
+\begin{aligned}
+f_i^{'op}=0.2341\times N_i.
+\end{aligned}
+\end{equation}
+\end{small}
+
+\end{asparaenum}
+%\begin{figure}[t]
+%	\includegraphics[width=3.5in]{figures/pic/vtow}
+%	%\psfig{figure=structure.eps,height=2.0in,width=3.2in}}
+%	\centering
+%    \bicaption[vtow-pic]{}{最优的指导向量长度与$w_{\mathrm{i}}$的关系}{Fig.}{The optimal length of indicator vector with respect to $w_{\mathrm{i}}$}
+%\end{figure}
+%%
+
+\subsection{ECUMI的丢失标签识别阶段}
+\esubsection{Missing Tag Identification of ECUMI}
+ECUMI丢失标签识别阶段与CUMI具有相同的操作，我们可以通过比较$Ev$和$Av$来找到现存的标签和丢失的标签。如图~\ref{2Unfoldcollisionslot}所示，我们假设$x$的值为$3$。标签1和标签2选择同一个时隙，它们都对阅读器回复$(001)_2$，我们无法将它们与组合信号区分，因此放弃该冲突时隙。标签3和标签4选择相同的时隙，标签3响应$(001)_2$给阅读器，标签4响应$(010)_2$给阅读器，组合信号为$(011)_2$，如果标签4丢失，实际接收到的信号为$(001)_2$，则可以确定标签3为当前存在的标签，标签4为丢失标签。标签5映射到一个单一时隙，它的响应字符串为$(100)_2$，因此从阅读器接收到的期望信号是$(100)_2$，如果实际接收到的是$(000)_2$，我们可以确定标签5丢失了。
+
+
+\subsection{ECUMI的执行时间帧数$\mathcal X'$}
+\esubsection{The Execution Rounds $\mathcal X'$ of ECUMI}
+在ECUMI中，需要多个时间帧$\mathcal X'$来完成所有丢失标签的识别。
+\vspace{0in}
+\begin{small}
+\begin{equation}\label{rounds}
+\begin{aligned}
+N=\sum_{i=1}^{\mathcal X^{'}} n_i^{'}.
+\end{aligned}
+\end{equation}
+\end{small}
+
+观察公式~\ref{identificationtag}和公式~\ref{SlotAbility2}， $f_i^{'op}$和$x'$是已知的，我们可以根据公式~\ref{rounds}计算时间帧数。
+
+\begin{table}[t]
+	\centering
+    \bicaption[tab:Idonframes2]{}{当ECUMI执行时不同$N$值需要的时间帧数量}
+    {Tab.}{The frames are needed with different $N$ when we perform ECUMI}
+	\begin{tabular}{cccccc}
+		\hline
+		% after \\: \hline or \cline{col1-col2} \cline{col3-col4} ...
+		协议/时间帧  & 10000 & 30000 & 50000 & 70000 & 90000  \\
+		\hline
+ECUMI &$22$&$25$&$26$&$27$&$28$  \\ \hline
+	\end{tabular}
+\end{table}
+
+
+从表~\ref{tab:Idonframes2}我们可以观察到，当标签的数量为$10000$时，时间帧数为$30$。当标签$N$的数量增加时，时间帧数不会显著增加。
+
+
+\section{关于ECUMI协议中几个实际问题的讨论}\label{Discussion_ECUMI}
+\esection{Discussion on Practical Issues of ECUMI}
+没有其他特别强调，仿真实验均是在实验室环境中执行的：没有未知标签，阅读器和标签之间没有信息的传输和接收错误，RFID系统中只含有单个阅读等。但当这些影响因素出现时，丢失标签的识别效率将受到影响。影响时间效率的因素包括三个外部影响因素和两个内部影响因素。三个外部影响因素包括未知标签、信道错误和多阅读器。两个内部影响因素包括丢失标签的数量和已知标签的数量。在本节中，我们将展示这些影响因素如何影响对比协议的执行。
+
+\subsection{未知标签影响}
+\esubsection{Impact on Unknown Tags}
+在RFID系统中，有未知标签存在的丢失标签识别是一个概率事件。我们将预定义的识别可靠性设置为$\alpha$，也就是说，我们只需要找出$m\times \alpha$个丢失的标签。在丢失标签识别中，未知标签的出现将带来\emph{假阴性}。\emph{假阴性}降低丢失标签的识别时间效率。因此，在执行识别协议之前，以高的时间效率灭活未知标签是一个重要的要求。\emph{布隆过滤器}可以有效地灭活未知标签。例如，B-ERMI（Basic Efficient and Reliable Missing tag Identification）\ucite{chen2017efficient}，HDMI（Highly Dynamic Missing tag Identification）\ucite{chen2020efficient}，SBFMD（Segmented Bloom Filter-based Missing Tag Detection scheme）\ucite{lin2018segmented}等采用布隆过滤器的方法去灭活未知标签，避免其干扰。
+
+\begin{asparaenum}
+\item\textbf{未知标签灭活:}
+
+在未知标签灭活中，布隆过滤器的性能将受到以下参数的影响：广播帧长度$f$，时间帧数$h$，哈希函数的数量$w$。每一帧都是独立的，包含$f$个时隙，一个随机哈希种子$s_i$ $(1\le i \le h)$和$w$个哈希函数，每个标签使用$w$个哈希函数在位图中独立随机地选择$w$个时隙位。$p_e$表示一次映射完成后任意时隙为空的概率。因为未知标签真实存在，则其映射的位图$w$位均为1，则\emph{假阴性}的概率$ p_{ne}$计算如下:
+\vspace{-0.05in}
+\begin{small}
+\begin{equation}\label{ProbabilityEmpty}
+\begin{aligned}
+p_e=(1-\frac{1}{f})^{n\cdot w}
+\end{aligned}
+\end{equation}
+\end{small}
+
+\vspace{-0.2in}
+\begin{small}
+\begin{equation}\label{ProbabilityNonEmpty}
+\begin{aligned}
+p_{ne}=(1-p_e)^w=\left(1-(1-\frac{1}{f})^{n\cdot w}\right)^w \approx (1-e^{-\frac{nw}{f}})^w
+\end{aligned}
+\end{equation}
+\end{small}
+
+\vspace{-0.05in}
+\begin{small}
+\begin{equation}\label{TransformingProbabilityNonEmpty}
+\begin{aligned}
+(1-e^{-\frac{nw}{f}})^w=e^{w\cdot ln(1-e^{-\frac{n\cdot w}{f}})}
+\end{aligned}
+\end{equation}
+\end{small}
+当\emph{假阴性}$ p_{ne}$的概率最小时，可以使未知标签的灭活效率最大化。设$\eta_1={w\cdot ln(1-e^{-\frac{n\cdot w}{f}})}$，求$\eta_1$ 对$w$的偏导数。
+\vspace{-0.05in}
+\begin{small}
+\begin{equation}\label{PartialDerivate}
+\begin{aligned}
+\frac{d\eta_1}{dw}=ln(1-e^{-\frac{n\cdot w}{f}})+\frac{n\cdot w \cdot e^{-\frac{n\cdot w}{f}}}{f \cdot (1-e^{-\frac{n\cdot w}{f}})}
+\end{aligned}
+\end{equation}
+\end{small}
+当$\frac{d\eta_1}{dw}=0$时，我们得到$\eta_1$的最小值，此时，$w$的值计算如下:
+\vspace{-0.05in}
+\begin{small}
+\begin{equation}\label{WFunctions}
+\begin{aligned}
+w=\frac{f\cdot ln2}{n}
+\end{aligned}
+\end{equation}
+\end{small}
+
+接下来，为广播帧中的每个时隙选择哈希种子。映射关系由哈希种子$s_1, s_2, \cdots, s_h$独立生成，且生成的映射按顺序执行。如果当哈希种子为$s_i$ 时时隙状态为\emph{0}，则可以忽略其余哈希种子产生的映射。由哈希种子$s_i$生成的组合向量中空时隙的概率$p_{ci}$按以下方式计算。
+
+一个未知标签在一次映射中选择$w$位，布隆过滤器中有$h$个映射，一次未知标签灭活执行后，未知标签在丢失标签检测阶段仍然活跃的概率$p_{ub}$计算如下:
+\vspace{-0.05in}
+\begin{small}
+\begin{equation}\label{OneMappingFalsePositive}
+\begin{aligned}
+p_{ci}=(1-p_{ne})\cdot p_{ne}^{i-1},
+\end{aligned}
+\end{equation}
+\end{small}
+\vspace{-0.15in}
+
+\begin{small}
+\begin{equation}\label{FalsePositive}
+\begin{aligned}
+p_{ub}=\prod_{i=1}^{h}=(1-p_{ci})^w.
+\end{aligned}
+\end{equation}
+\end{small}
+
+
+\begin{table}[t]
+	\centering
+    \bicaption[tab:BloomStillActive]{}{当$n=10000$，$u=10000$时，改变 布隆过滤器中的$h$和$w$未知标签仍然存活的概率}
+    {Tab.}{The probability of unknown tag sill active after Bloom filter with different $h$ and $w$ when $n=10000$, $u=10000$}
+	\begin{tabular}{ccccccc}
+		\hline
+		% after \\: \hline or \cline{col1-col2} \cline{col3-col4} ...
+		h/w  & 1 & 2 & 3 & 4 & 5  & 6 \\
+		\hline
+$1$ &$0.5000$&$0.2500$&$0.1250$&$0.0625$&$0.0313$&$0.0156$ \\ \hline
+$2$ &$0.375$&$0.1406$&$0.0527$&$0.0198$&$0.0074$&$0.0028$ \\ \hline
+$3$ &$0.3281$&$0.1077$&$0.0353$&$0.0116$&$0.0038$&$0.0012$ \\ \hline
+$4$ &$0.3076$&$0.0946$&$0.0291$&$0.0090$&$0.0028$&$0.0008$ \\ \hline
+$5$ &$0.2980$&$0.0888$&$0.0265$&$0.0079$&$0.0024$&$0.0007$ \\ \hline
+$6$ &$0.2933$&$0.0861$&$0.0252$&$0.0074$&$0.0022$&$0.0006$ \\ \hline
+$7$ &$0.2911$&$0.0847$&$0.0247$&$0.0072$&$0.0021$&$0.0006$ \\ \hline
+		\hline
+	\end{tabular}
+\end{table}
+
+
+我们可以从公式~\ref{WFunctions}中观察到广播时间帧大小$f=\frac{n\cdot w}{ln2}$是一个关于已知标签数$n$和哈希函数数量$w$的单调递增函数，而$f$ 的值与映射数量$h$无关。但是我们必须构造一个复合向量告诉标签相应的时隙为空时，它们应该选择哪个哈希种子。因此，我们必须传输$\lceil \log_{2}{(h+1)} \rceil$位字符串来区分每个时隙选用的哈希种子。复合向量的长度为$f*\lceil \log_{2}{(h+1)} \rceil$。我们应该选择一个小的$w$ 和一个合适的值$h$，以减少未知标签灭活的时间。我们分析未知标签灭活的执行时间，首先，阅读器需要将参数传输到标签，例如时隙的数量$f$、哈希种子$h$ 和广播向量\emph{BV}。其次，标签一旦接收到参数，根据\emph{BV}，它们选择哈希种子来计算它们应该响应的时隙。因此，未知标签的灭活时间如下:
+\begin{small}
+\begin{equation}\label{BloomFilterTime}
+\begin{aligned}
+T_B=f\times \lceil \log_{2}{(h+1)}\rceil  \times \tau_p +f \times (\tau_w + \tau_d).
+\end{aligned}
+\end{equation}
+\end{small}
+由于参数($f, h$)的传输时间与灭活时间相比太小，我们直接忽略了它。从表格\ref{tab:BloomStillActive}中，我们注意到当$w$为$1$，$h$不小于$5$时，$p_{ub}$的减幅小于$0.5\%$。因为$f$的值取决于$n$和$w$的大小，所以$h$的大小和未知标签$U$的数量不影响$f$和$T_B$。
+
+
+\item\textbf{丢失标签识别:}
+
+未知标签灭活阶段结束后仍有少量剩余未知标签会干扰丢失标签的有效识别。我们将参与的未知标签的数量表示为$u'$。在CUMI中，已识别的标签不会参与下一个识别时间帧。如果丢失的标签选择了一个预测的单一时隙，但至少有一个剩余的未知标签也选择了该时隙，那么CUMI将做出丢失标签存在的错误判断。因此，减少已知标签的数量可以降低误判的概率。在有未知标签干扰的情况下，一个丢失标签被识别的概率$p_r$计算如下:
+
+\vspace{-0.1in}
+\begin{small}
+\begin{equation}\label{pr}
+\begin{aligned}
+p_r=\sum_{j=1}^{x} p_{ij}\times (1-\sum_{j=1}^{x} p_{ij})^{u'}.
+\end{aligned}
+\end{equation}
+\end{small}
+从公式~\ref{pr}可以观察到，$u'$越大，$p_r$越低。因此，我们在保证识别可靠性的前提下，尽量减少剩余未知标签的数量。本章主要研究无未知标签的丢失标签识别问题，因此在仿真中，我们设未知标签被灭活的概率为$99\%$，最合适的$h$为$5$，最小的$w$为$4$。
+
+\end{asparaenum}
+
+
+\subsection{信道错误影响}
+\esubsection{Impact on Channel Errors}
+在理论推导中，本章假定传输信道是可靠的。但事实上，空气中富含各种用途的电磁波，我们把非RFID传输的电磁波称为白噪声。白噪声会导致阅读器和标签之间的通信出错，传输信息中的$(0)_2$变成$(1)_2$，或$(1)_2$变成$(0)_2$\ucite{liu2014multiple,li2010identifying}，甚至传输数据会因传输链路断开而丢失。根据文献\ucite{benedetti2019impact}的表述，当信道信息传输错误率为$0.2$时，信息的传输时间效率降低14\%，标签的识别效率降低10\%。
+
+阅读器和标签之间的数据传输包括两个方面：从阅读器到标签的上行链路和从标签到阅读器的下行链路。上行链路是参数传输，包括从阅读器传输到标签的时间帧长度$f$、哈希种子$s$等。此外，CUMI和ECUMI必须从阅读器广播一个指示向量到标签，以完成冲突时隙展开。然而，大多数文献认为上行链路是可靠的\ucite{zhang2010using,chen2011efficient,qiao2011energy}，因为阅读器能够传输足够的能量。文献\ucite{jin2007performance}的研究表明，基于C1G2\ucite{epcc1g2}标准设计的协议在信噪比低于4dB时，识别速度比在理想环境下慢$4.7$倍\ucite{jin2007performance}。因此，我们假设从阅读器到标签的信息传输是可靠的。从标签到阅读器的传输很容易被环境噪声干扰中断。在执行CUMI、ECUMI和其他协议时，不可靠的信道会在标签到阅读器的信息传输过程中导致误码。误码会带来两种类型的识别错误：如果存在的标签被误认为丢失标签，我们称之为\emph{假阳性}；如果丢失的标签被误认为是现存的标签，我们将其称为\emph{假阴性}。
+
+在单一时隙中，只有一个类型错误：响应$(1)_2$变成$(0)_2$。也就是说，现存的标签会被误认为是丢失的标签。如果标签丢失，阅读器将不会收到响应。在CUMI中，来自标签的响应长度等于映射到同一时隙标签的数量，$x$的最佳选择是3。在存在$2$个冲突标签的冲突时隙中，如果两个标签都存在，那么阅读器接收到的不准确的组合信号可能是$(10)_2$，$(01)_2$，或$(00)_2$。根据组合信号$(10)_2$和$(01)_2$，我们将得到一个错误的结论，即两个标签的一个丢失，另一个存在。如果一个响应$(10)_2$的标签丢失，另一个响应$(01)_2$的标签实际存在，那么阅读器接收到的不准确的组合信号可能是$(00)_2$，$(11)_2$，或$(10)_2$。$(00)_2$表示两个标签都丢失的错误结果。$(11)_2$表示所有两个标签都出现的错误结果。$(10)_2$表示应该响应$(10)_2$的标签存在，而另一个标签丢失。如果两个标签实际上都丢失了，那么阅读器将不会收到任何响应。因此，此种情况不会对识别产生影响。
+$3$冲突时隙的分析与$2$冲突时隙一样，但错误类型比$2$冲突时隙多。同样的情况也适用于CUMI和ECUMI的3冲突时隙，因此我们不详细展示分析过程。为了避免这种错误，可以采用轮询法对假阳性进行验证。由于丢失标签的数量远远小于RFID系统中现存的标签数量，因此对丢失标签的顺序轮询不会严重增加识别的时间成本。然而，在丢失标签识别中，假阴性的问题是不容易解决。唯一的方法是确保传输数据正确。在阅读器与标签的通信中，循环冗余校验（Cyclic Redundancy Check，CRC）方法可以确保传输数据正确，但错误的二进制字符串需要重新传输，直到阅读器接收到正确的传输数据。CRC可以保证标签到阅读器的响应是正确的，但由于标签需要传输更多的数据，大大降低了丢失标签识别的时间效率。此外，文献\ucite{liu2014multiple}采用了标签响应的校验和，并将校验和附加在阅读器传输的参数后面\ucite{liu2014multiple}。 当我们执行CUMI和ECUMI时，接收错误数据的时隙总数表示为$D_U$和$D_{EU}$，其计算如下:
+\vspace{-0.1in}
+\begin{small}
+\begin{equation}\label{Du}
+\begin{aligned}
+D_u=\sum_{j=1}^{x}f_{i}\times p_{ij}\times [1-(1-\rho)^j],
+\end{aligned}
+\end{equation}
+\end{small}
+
+\vspace{-0.3in}
+\begin{small}
+\begin{equation}\label{Deu}
+\begin{aligned}
+D_{EU}=\sum_{j=1}^{x'} f_{i}\times p_{ij}\times [1-(1-\rho)^{x'}].
+\end{aligned}
+\end{equation}
+\end{small}
+
+
+\subsection{多阅读器影响}
+\esubsection{Impact on Multiple Readers}
+据我们所知，RFID阅读器的查询范围是有限的，单个阅读器探测距离通常小于10米。我们可以部署多个阅读器，或为一个阅读器配置多个天线来扩展监视区域。一个Impinj R420阅读器可以配备多达32根天线\ucite{schuster2007global}。因此，一个部署了数千、甚至数万个标签的大规模监测区域应该部署多阅读器多天线来监测。我们可以简单地让阅读器向标签发送相同的参数，并将接收到的标签数据返回给服务器，以便融合数据并识别丢失的标签。对所接收到的所有阅读器返回数组执行位或操作。从逻辑上讲，这些阅读器就像一个超级阅读器，具有足够的通信范围来监视所有标签。尽管这种操作很简单，但是在丢失标签的识别中，来自阅读器间的冲突(R2Rc)干扰被忽略了。R2Rc会导致识别失败，降低了识别的可靠性。针对R2Rc的问题，一些人提出了阅读器调度方案\ucite{waldrop2003colorwave,gandino2011probabilistic,amadou2015hamac}，但这些论文都集中在阅读器调度策略上，而不是丢失标签的识别，因此在多阅读器影响的条件下，我们采用阅读器调度的贪心算法ColorWave方案来避免R2Rc影响\ucite{waldrop2003colorwave}。
+
+\subsection{丢失标签与已知标签数量的影响}
+\esubsection{Impact on Missing Tags and Known Tags}
+丢失标签数量和已知标签数量直接影响丢失标签识别的时间效率。在执行丢失标签识别时，我们只确定标签是否丢失，而不必获取丢失标签的ID。因此，当总标签的数量是恒定的，而丢失标签的数量是可变的，执行时间变化较小。显然，随着已知标签数量的增加，丢失标签识别的执行时间将变长。
+
+
+\section{协议性能评估}\label{PerformanceEvaluation_ECUMI}
+\esection{Performance Evaluation}
+在本节中，我们将首先简要描述对比协议工作原理，其次在三个外部影响因素和两个内部影响因素影响下通过对比实验评估CUMI和ECUMI的时间效率。
+
+
+阅读器与标签之间的通信遵循EPC C1G2协议。丢失标签识别过程由多个时间帧组成，每个时间帧包含一系列的时隙。根据标签回复数据的长度，阅读器可区分多种时隙类型。当标签只回复1比特数据时，阅读器可以区分两种类型的时隙：空时隙和忙时隙。空时隙没有标签响应，忙时隙至少有一个标签响应。当标签回复至少两位数据时，阅读器可以区分三种类型的时隙：没有标签响应的空时隙，只有一个标签响应的单一时隙，以及有多个标签响应的冲突时隙。
+
+先前的丢失标签识别协议可以将期望时间帧中的单一时隙与其实际映射时隙状态作对比来判断标签是否丢失，但协议执行中冲突时隙直接被丢弃。丢弃的冲突时隙会降低时隙的利用率、降低协议执行效率。根据Philips I-Code系统\ucite{PhilipsICode}的介绍，阅读器和标签之间的通信由两部分组成：从阅读器向标签广播参数，以及从标签向阅读器的响应。从阅读器到标签的传输速率为$26.5Kb/s$，也就是说，从阅读器发送1比特数据到标签的传输时间成本为$37.7us$，我们用$\tau_p$ 表示。从标签到阅读器的传输速率为$53Kb/s$，也就是说，从标签到阅读器传输1比特数据的时间成本为$18.8us$，我们用$\tau_d$表示。从标签到阅读器的两个连续数据传输之间有一个等待时间，反之亦然，等待时间为$302us$，我们用$\tau_w$\ucite{liu2018fast}表示。通常，从阅读器到标签的参数传输的时间成本为$\tau_w+16*\tau_p$，这比协议执行时间要小得多，因此在执行CUMI 和ECUMI时，我们直接将此时间消耗忽略；但指示向量必须从阅读器传输到标签，指示向量传输时间为$L_v\times \tau_p$，$L_v$为指示向量的长度；每个时隙中，标签回复阅读器问询的时间成本为$\lambda *\tau_d$。
+
+\subsection{对比协议}
+\esubsection{Comparison protocols}
+$\rhd$基于时隙过滤的丢失标签识别协议(SFMTI)\ucite{liu2013completely}：一种提高丢失标签识别时间效率的有效方法。在SFMTI中，一些预测的冲突时隙被调和成单一时隙，而预测的空时隙和不能调和的冲突时隙被直接过滤掉。调和的单一时隙将被重新定位到与过滤向量相邻的附加向量中。重复多个时间帧，直到丢失的标签全部被找到。
+
+$\rhd$基于多哈希的丢失标签识别协议(MMTI)\ucite{liu2014multiple}：一个高效的丢失标签识别协议，提高了时隙的利用率。它采用多重哈希的方式将冲突标签重新定位到空时隙中。因此，它有效地利用了空时隙并减少了冲突时隙的数量。但是阅读器需要传输一个位图，该位图反映了当前的时隙占用状态，为下一帧协议执行时冲突标签的时隙选择提供依据。
+
+$\rhd$对偶冲突解决丢失标签识别协议(PCMTI)\ucite{zhang2017time}：它是基于曼彻斯特编码方法和帧时隙的ALOHA协议设计的。它需要多次哈希运算将有两个冲突标签的时隙解码为丢失标签识别的有效时隙。双冲突时隙中标签$1$响应$(01)_2$给阅读器，标签$2$响应$(10)_2$给阅读器。当组合信号为$(10)_2$ 或$(01)_2$ 时，我们可以确定丢失一个标签。当组合信号为$(00)_2$时，我们可以确定这两个标签都丢失。因此，部分冲突时隙的再利用提高了时隙的利用率。
+
+$\rhd$高效可靠的丢失标签识别协议(ERMI)\ucite{chen2017efficient}：它是针对出现未知标签的RFID系统设计。ERMI包括两个阶段：未知标签灭活和丢失标签识别。在未知标签灭活阶段，ERMI将预测时隙状态与实际时隙状态比较，判断标签是否未知，如果标签是未知的，为了杜绝假阴性的影响，它将会被灭活不能参与下一轮的协议执行。在丢失标签识别中，剩余的未知标签仍然会限制ERMI的识别效率。
+
+为了进行公平的比较，我们假设RFID系统中没有未知标签，或者使用相同的方法灭活未知标签。
+
+\subsection{未知标签对协议性能的影响}
+\esubsection{The Impact of Unknown Tags in Simulation}
+\begin{figure}[t]
+    \setlength{\abovecaptionskip}{0 pt}
+    \setlength{\belowcaptionskip}{0pt}
+  \centering
+  \includegraphics[width=0.45\textwidth]{Unknowntags}
+  \bicaption[Unknowntags]{}{有未知标签出现的协议执行时间}{Fig.}{Example of Execution Time when Unknown Tags existed in RFID Network.}
+\end{figure}
+假设RFID系统中已知标签数$n=10000:1000:20000$，未知标签数$U=10000$，丢失标签数$m=100$，识别可靠性$\alpha$为$0.9$。改变已知标签与未知标签数量的比例检测未知标签对协议性能的影响。从图~\ref{Unknowntags}中，我们有两个发现：
+\begin{asparaenum}
+\item ECUMI和CUMI的性能优于其他比较协议；例如，当已知标签数为$10000$时，CUMI、ECUMI、SFMTI、MMTI、ERMI和PCMTI的时间成本分别为$27.04s, 26.55s, 27.18s, 30.66s, 33.29s, 28.94s$，CUMI的协议性能与SFMTI相近，ECUMI的协议执行性能是SFMTI的1.02倍，是ERMI的1.25倍；
+\item 随着已知标签数量的增加，识别过程的时间成本显著增加，因为已知标签数量增加给未知标签灭活增大了难度，时间消耗增加；例如，当已知标签数量为$10000$时，未知标签灭活的时间成本为$25.04 4s$，而当已知标签数量为$30000$时，未知标签灭活的时间成本为$75.12s$。
+\end{asparaenum}
+
+\subsection{信道错误对协议性能的影响}
+\esubsection{The Impact of Channel Errors in Simulation}
+\begin{figure}[t]
+    \setlength{\abovecaptionskip}{0 pt}
+    \setlength{\belowcaptionskip}{0pt}
+  \centering
+  \includegraphics[width=0.45\textwidth]{biterror}
+  \bicaption[biterror]{}{当误码率从$0.001$到$0.01$时错误时隙的数量}{Fig.}{Example of Mistaken Slots are Computed when We Vary the Rate of Bit-error from $0.001$ to $0.01$.}
+\end{figure}
+为了简化仿真，我们假设组合信号的误码率为$\varrho$，并将其设置为$0.001$到$0.01$，间隔为0.001，并设标签的数量$N$为$10000$，丢失标签的数量$M$ 为$100$，把所有阅读器看作一个超级阅读器，且能够与所有标签通信，系统内不存在未知标签，不考虑阅读器间冲突问题。从仿真结果图~\ref{biterror} 中，我们可以得出结论，在比较协议中，除了SFMTI 之外，数据需要重传的时隙数量相似，因为SFMTI只对冲突时隙(2冲突时隙，3冲突时隙)响应1 位。然而，当CUMI协议执行到$k$冲突时隙时，标签需向阅读器响应$k$位预定数据，而ECUMI执行到$k$冲突时隙时(k $\leq$ 10)，时隙内的标签向阅读器响应$10$位预定数据。误码率的增加会显著降低丢失标签识别的可靠性。如果使用CRC来保证传输数据的正确性，则需要从标签向阅读器传输更多的响应数据，而额外的传输数据将降低协议的时间效率。
+
+\subsection{多阅读器对协议性能的影响}
+\esubsection{The Impact of Multiple Readers in Simulation}
+\begin{figure}[t]
+    \setlength{\abovecaptionskip}{0 pt}
+    \setlength{\belowcaptionskip}{0pt}
+  \centering
+  \includegraphics[width=0.45\textwidth]{multiplereaders}
+  \bicaption[multiplereaders]{}{RFID系统中有多个阅读器时协议的执行时间}{Fig.}{Example of Execution Time when Multiple Readers in RFID Network.}
+\end{figure}
+
+\begin{figure}[t]
+    \setlength{\abovecaptionskip}{0 pt}
+    \setlength{\belowcaptionskip}{0pt}
+  \centering
+  \includegraphics[width=0.45\textwidth]{Missingtags}
+  \bicaption[Missingtags]{}{RFID系统中丢失标签数量从$10$到$100$时协议执行时间}{Fig.}{Example of Execution Time when the Number of Missing Tags is Varied from $10$ to $100$.}
+\end{figure}
+
+\begin{figure}[t]
+    \setlength{\abovecaptionskip}{0 pt}
+    \setlength{\belowcaptionskip}{0pt}
+  \centering
+  \includegraphics[width=0.45\textwidth]{numberTags}
+  \bicaption[numberTags]{}{RFID系统中已知标签数量从$10$到$100$时协议执行时间}{Fig.}{Example of Execution Time when We Vary the Number of Total Tags from $10000$ to $100000$.}
+\end{figure}
+为了演示多阅读器的影响，我们假设在$30m\times30m$的监测区域内部署$5\times5$个RFID阅读器，这些阅读器的X坐标分别为$3m, 9m, 15m, 21m, 27m$，Y坐标也分别为$3m, 9m, 15m, 21m, 27m$。由于阅读器在不同角度的探测距离可能不一致，我们假设在MATLAB中探测距离\emph{Normrnd(5m, 0.25m)}遵循正态分布。因此，如果两个阅读器之间距离大于$11m$，我们确定两个阅读器之间没有冲突，那么它们将被标记成相同的颜色。这个贪心算法解决了$R2Rc$问题。所有标签都随机分布在监控区域内。
+
+从图~\ref{multiplereaders}中，我们得到了以下观察结果：
+\begin{asparaenum}
+\item 部署在RFID系统中的多个阅读器显著增加了丢失标签识别的时间成本，阅读器分组工作方式，虽然避免了R2Rc带来的假阴性影响，但显然增加了时间延迟；
+\item ECUMI和CUMI在比较协议中仍然是性能最好的。例如，当标签数为$100000$时，ECUMI、CUMI、SFMTI、MMTI、ERMI和PCMTI的时间成本分别为$75.06s$、$132.16s$、$135.21s$、$226.35s$、$346.56s$和$161.53s$。也就是说，ECUMI的时间效率比SFMTI快1.8倍。
+\end{asparaenum}
+
+\subsection{丢失标签数量对协议性能的影响}
+\esubsection{The Impact of Missing Tags in Simulation}
+
+在这个仿真中，我们将丢失标记的数量设置从$10$到$100$，其中$N$为$10000$。根据图~\ref{Missingtags}所示的仿真结果，我们能够做出三个主要的观推断：
+\begin{asparaenum}
+\item ECUMI和CUMI的时间成本接近理论分析的值。当丢失标签数量增加时，协议的执行时间是稳定的，例如，如果丢失标签的数量为$10$ 到$100$时，CUMI的执行时间分别为$3.06s$、$3.19s$、$3.26s$、$3.26s$、$3.28s$、$3.30s$、$3.30s$、$3.31s$、 $3.31s$ 和$3.32s$；
+\item ECUMI和CUMI的性能优于其他比较协议；例如，当丢失标签数为$100$，则ECUMI、CUMI、SFMTI、MMTI、ERMI和PCMTI的时间成本分别为$1.88s$ $3.32s$、$3.40s$、$5.66s$、$8.66s$和$4.04s$。这意味着本章提出的ECUMI比最先进的ERMI协议快4.71倍，而CUMI比ERMI协议快2.6倍。
+\item ECUMI性能优于CUMI，其原因是ECUMI对时隙的利用率更高，且ECUMI的帧长度小于CUMI。
+\end{asparaenum}
+
+
+\subsection{已知标签数量对协议性能的影响}
+\esubsection{The Impact of known Tags in Simulation}
+
+我们列举已知标签数量从$10000$到$100000$。丢失标签数量是$100$。从图~\ref{numberTags}中，我们得到两个观察结果：
+\begin{asparaenum}
+\item 我们提出的ECUMI和CUMI是比较协议中性能最好的，例如，当标签总量为$100000$时，ECUMI、CUMI、SFMTI、MMTI、ERMI和PCMTI的时间成本分别为$18.77s$、 $33.04s$、$33.80s$、$56.59s$、$86.64s$和$40.38s$，ECUMI的协议性能是ERMI的4.61倍，是SFMTI的1.8倍；
+\item 时间成本与标签数量$N$之间呈线性关系，其他识别协议的时间成本-标签数量增长率均高于ECUMI和CUMI协议。
+\end{asparaenum}
+
+%\begin{figure}[t]
+%	\includegraphics[width=3.5in]{figures/pic/daffect}
+%	%\psfig{figure=structure.eps,height=2.0in,width=3.2in}}
+%	\centering
+%    \bicaption[fig:affect_of_d_pic]{}{传输开销和签名长度$d$的关系}{Fig.}{Transmission overhead vs. the length of signature}
+%\end{figure}
+%
+%\begin{figure}[t]
+%	\includegraphics[width=3.5in]{figures/pic/proportion}
+%	%\psfig{figure=structure.eps,height=2.0in,width=3.2in}}
+%	\centering
+%   \bicaption[fig:proportion_pic]{}{各阶段传输开销所占比例}{Fig.}{The proportion of transmission overhead of each stage}
+%\end{figure}
+
+\section{本章小结}\label{Conclusion_Estimation}
+\esection{Chapter Conclusion}
+在本章中，我们研究了RFID系统中丢失标签的完全识别的实际问题，做出了以下主要贡献：第一，我们提出了一种基于冲突展开的丢失标签识别协议CUMI，将一系列的冲突时隙转换为伪单一时隙，这种转换提高了时隙的利用率，显著提高了识别效率。第二，我们提出了一种增强的ECUMI协议，压缩指示向量的长度，以进一步提高时间效率。第三，通过理论分析和实验验证，得到了能使CUMI和ECUMI的执行时间最小化的最佳帧长设置。最后，我们进行了大量的仿真来揭示影响因子对丢失标签识别效率的影响，影响因子包括未知标签的数量、信道错误、多读取器、已知标签的数量和丢失标签的数量。大量的仿真结果表明，本章所提出的ECUMI和CUMI协议在时间效率上分别比先前的丢失标签识别协议至少高出1.8倍和1.02倍。
+
+

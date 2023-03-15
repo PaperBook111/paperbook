@@ -1,0 +1,1021 @@
+\chapter{大规模RFID系统中丢失标签的检测}
+\echapter{Missing Tag Detection for Large-scale RFID System}
+\label{chap02}
+
+\section{引言}
+\esection{Introduction}
+射频识别(RFID)技术给我们的生活带来了革命性的改变。例如，在物品上张贴RFID标签，无人值守超市可以实现便捷支付，大型仓储可以实现快速盘点，机场可以实现行李的跟踪装运等。然而，在一个仓储管理与库存盘点系统中，入店行窃、员工盗窃和供应商欺诈等会给企业造成巨大的经济损失。根据一项调查显示，零售巨头沃尔玛每年因为盗窃大约损失30亿美元\ucite{rekik2009inventory}，2017年，美国零售业因失窃每年大约损失468亿美元\ucite{lin2020eumd,walmart}。因此，丢失标签检测在RFID的应用中具有实际意义。为了避免重大经济损失，系统管理者希望尽快检测到丢失的物品，时间效率是评估检测协议执行性能的一个关键指标。
+
+相关协议可分为两组:丢失标签检测\ucite{shahzad2015expecting,lin2021fast,zhang2020missing,liu2018fast,tan2010efficient,luo2011efficient}，丢失标签识别\ucite{yu2018missing,zhang2011fast,wang2020time,chen2017efficiently}。 前者专注于利用概率和统计的原理检测丢失标签的数量，一旦检测到系统存在丢失标签，阅读器将立即终止时间帧的执行，并发出警告消息\ucite{chen2017efficient,tan2018efficient}。 后者专注于持续获取确切的丢失标签列表，它会随机检测每个标签并确认其是否存在。与丢失标签检测相比，后者通常需要更多的时间来获取每个丢失标签的确切ID。 为了平衡检测精度和时间效率，通常将以上两种方案综合使用。具体地说，我们可以先应用一个轻量级的概率丢失标签检测协议来持续监视系统是否存在丢失的标签，一旦找到丢失的标签，我们就可以进一步采用确定性的标签识别协议，获取完整的丢失标签ID。
+
+
+
+
+
+
+%尽管许多丢失标签检测协议已经被提出，但它们大多只适用于单一阅读器监控的单一类别标签的RFID 系统\ucite{shahzad2015expecting,tan2010efficient,liu2020fast}。 然而，标签通常根据自身类型或者相关联的物品属性被分为多个类别，且阅读器的通信范围(即使配备多天线)是有限的\ucite{jia2019efficient}，对于大范围的监控空间，我们通常需要部署多个具有重叠通信区域的阅读器以无缝覆盖整个标签分布区域。本章的目的是提高大规模RFID 系统中丢失标签检测的时间效率。大规模RFID系统中包含多个阅读器以及多个类别的标签。因此，同一类别中的标签可能由多个阅读器监控，且每个阅读器监控几个类别的部分标签。有的作者虽然考虑了多阅读器、多类别标签的RFID应用场景，但简单的让所有阅读器同时工作且给所有阅读器设置了相同的参数\ucite{liu2018fast}，忽略了阅读器间的冲突（Reader-to-Reader Collision，R2Rc）问题和标签的分布状态。由于R2Rc 影响，标签可能会同时收到多个阅读器问询导致标签识别失败，而且不同类别标签空间分布存在差异（标签数量、分布范围、标签类别等），阅读器的统一参数设置会导致无效时隙增多，降低检测效率。因此，对阅读器参数的个性化设置对提高丢失标签检测的执行速度极为重要。
+
+阅读器的阅读范围（即使配备了多个天）是非常有限的\ucite{jia2019efficient}。因此，对于大范围的监控空间，我们通常需要部署多个具有重叠通信区域的阅读器以无缝覆盖整个标签分布区域。如果两个毗邻的阅读器同时广播探测命令时，阅读器的信号重叠（Reader-to-reader collision，R2Rc）就会干扰位于重叠区域的标签，使标签不能正确识别阅读器发送的信号指令，从而导致标签认证失败。然而，大部分丢失标签检测协议只是单纯设定RFID系统中只包含一个阅读器，忽略了阅读器间的冲突R2Rc的影响。此外，许多研究工作旨在消除R2Rc\ucite{mbacke2018survey,amadou2015hamac,waldrop2003colorwave}。 在单类别标签的RFID 系统中，避免R2Rc的算法可以有效提升标签的识别性能，但在多类别RFID系统中，由于类别标签分布区域的问题，可能有些阅读器的监控区域没有对应类别的标签，在检测时开启此阅读器，无疑增加能量消耗。因此，为减少能量消耗，避免因R2Rc的产生造成丢失标签检测的假阳性错误（标签没有丢失，由于R2Rc 造成标签识别失败，错误认为标签丢失），检测类别标签分布存在的差异（标签数量、分布范围、标签类别等），以及规划阅读器分组成为多阅读器多类别RFID系统中丢失标签检测必须考虑的问题。
+
+
+针对以往协议忽略R2Rc影响和标签在每个阅读器监控范围内分布的差异性影响，本章提出了一种基于Aloha协议，且能够快速实现多阅读器多类别RFID系统中丢失标签检测协议（Multi-reader Missing Tag Detection，MMTD）。MMTD拥有两大优势：（1）MMTD检测类别标签分布区域，并把整个丢失标签检测任务分割成没有R2Rc的多个轻量级子任务，任务分摊提高了丢失标签检测的时间效率；（2）根据类别标签的空间分布，个性化设置每个阅读器中每个类别所需要的广播帧长和执行帧长。如图\ref{system}所示，假如每个类别标签的分布区域以及阅读器的识别区域已经被获取，为了免除R2Rc影响，我们利用最简单的贪心算法把所有的阅读器分为红黑两组，阅读器1、阅读器4为一个分组，阅读器2和阅读器3为另一个分组，两个分组依次执行丢失标签检测协议。由此我们可以发现，MMTD既可实现多类别丢失标签的并行检测，又可以避免R2Rc带来了标签认证失败影响。
+
+
+%且能够同时对所有类别的标签进行丢失标签检测的协议(SMTD)。SMTD的技术深度在于解决了三个技术挑战：确保检测精度，优化帧长设置，标签类别聚类分割。相较于先前的协议，SMTD的关键优势在于可以把单个时间帧解码为多个帧的占用向量，每个帧占用向量可以检测一个类别标签的丢失情况。与先前协议逐一类别标签检测的方法相比，SMTD大幅减少了时间帧的长度和时隙利用率，从而获得更高的时间效率。
+
+%本节进一步提出多阅读多类别丢失标签检测协议(MMTD)对阅读器优化分组消除R2Rc的假阴性影响，并检测每个类别标签的空间分布，差异化阅读器的参数设置，进一步优化丢失标签检测的时间效率。与相关协议相比，MMTD拥有两大优势：(1)MMTD检测类别标签分布区域，并把整个丢失标签检测任务分割成没有R2Rc 的多个轻量级子任务；(2) 根据类别标签的空间分布，个性化设置每个类别所需要的广播帧长和执行帧长。如图\ref{system} 所示，假如每个类别标签的分布区域以及阅读器的识别区域已经被获取，为了免除R2Rc影响，我们利用最简单的贪心算法把所有的阅读器分为红黑两组，阅读器1、阅读器4为一个分组，阅读器2和阅读器3为另一个分组，两个分组依次执行丢失标签检测协议。由此我们可以发现，MMTD既可实现多类别丢失标签的并行检测，又可以避免R2Rc带来了标签认证失败影响。
+
+
+
+
+本章的主要内容和结构安排如下，第\ref{problem_definition_inventory_updating} 小节给出了多阅读器多类别标签的RFID系统中丢失标签检测明确定义，阐述了该问题的重要性和研究价值。
+%
+第\ref{PriorArtLimitation_inventory_updating} 小节总结了现有协议的主要缺点。第\ref{Design_of_ MMTD}小节提出了一种针对多阅读器多类别标签RFID系统丢失标签检测协议MMTD。MMTD利用贪心算法调度阅读器的工作顺序避免丢失标签检测过程中的R2Rc影响，同时利用多阅读器以及标签的分散分布把繁重的检测任务划分为多个轻量级任务，缩短广播帧长，提升检测效率。
+%
+第\ref{Optimize the parameters of MMTD}小节通过大量的理论分析对MMTD中各个阅读器的关键参数进行优化。
+%
+第\ref{PerformanceEvaluation MMTD} 小节建立了多阅读器多类别RFID丢失标签检测环境，并仿真实现了MMTD协议，评估了MMTD 在多种参数组合下的时间效率。
+%
+第\ref{Conclusion_Identification} 节总结了本章的研究工作。
+
+%本章主要研究大规模动态RFID系统中的动态标签ID信息收集方法，提出了一种基于哈希映射的标签识别方法（Fast Continuous Scanning，FCS）来解决上述两个关键问题。FCS 专注于识别动态标签集合，即图\ref{continuous-scanning-problem}中所示的新增标签和丢失标签。结合新增标签，丢失标签以及前一次标签识别的结果，既可以计算现有标签集合，达到和识别所有标签一样的效果。此外，FCS利用哈希映射对标签选择的时隙进行了离线预测。阅读器根据预测结果发送二进制知道向量来跳过冲突和空时隙，从而提升了时间帧的利用率。大量理论分析和数值仿真结果证明了FCS 方法与现有方法相比，具有执行时间短，准确率高的优点。
+
+\section{系统模型与问题定义}\label{problem_definition_inventory_updating}
+\esection{Problem Definition}
+\subsection{系统模型}
+\begin{figure}[t]
+    \setlength{\abovecaptionskip}{0pt}
+    \setlength{\belowcaptionskip}{0pt}
+  \centering
+  \includegraphics[width=0.4\textwidth]{system}
+  \bicaption[system]{}{多阅读器RFID系统模型}{Fig.}{Multi-reader RFID system model}
+\end{figure}
+本章主要研究多阅读器多类别RFID系统中丢失标签的检测。多阅读器多类别RFID系统模型主要由一台服务器，多个阅读器，多个类别标签组成。阅读器可以通过多个天线扩展通信范围，保证监控范围内的标签都能够与阅读器保持顺畅通信。服务器通过LLRP协议控制阅读器的读写，阅读器获取的标签数据通过高速以太网传输到服务器，服务器再对接收的标签数据进一步处理分析。每个标签有各自独有的ID，每个ID分为两部分:类别ID和成员ID。类别ID 为二进制字符串，作为标识符标记标签属于某个类别。在类别ID中只有一位为1，其他所有位全为0。 成员ID是一个随机的二进制字符串，且在特定类别标签中属单个标签独有，标识标签在某一特定类别的成员编码。
+
+%多阅读器多类别RFID系统部署$U$个阅读器，使每个标签至少能与一个阅读器通信。给定一组RFID标签，分别属于$\lambda$类$C_1,C_2,\dots,C_\lambda$，对于每个标签类别$C_i$，$i\in [1,\lambda]$，我们不仅知道其应有的标签数量$n_i$，而且其成员标签ID也被存储在服务器中。我们希望使用阅读器快速检测每个标签类别$C_i$是否有丢失标签，如果标签类别$C_i$中丢失标签数量超过容忍阈值$t_i$，$t_i\geq 1$，丢失标签被检测出的概率设为$\alpha_i$，$\alpha_i\in (0,1)$。然而，被单个阅读器认定为丢失标签并不代表此标签真正意义的丢失，而是被$U$个阅读器都认为丢失，此标签才是真正的丢失标签。
+
+\begin{definition}
+\label{Definition}
+给定一组RFID标签，分属$\lambda$个标签类别\{$C_1,C_2,\dots,C_i,\dots,C_\lambda$\}，$i\in [1,\lambda]$，对于每个标签类别$C_i$，我们不仅知道其应有的标签数量$n_i$，而且其成员标签ID也被存储在服务器中。我们希望使用阅读器快速检测每个标签类别$C_i$是否有丢失标签，如果标签类别$C_i$ 中丢失标签数量超过容忍阈值$t_i$，$t_i\geq 1$，丢失标签被检测出的概率设为$\alpha_i$，$\alpha_i\in (0,1)$。
+\end{definition}
+
+多阅读器多类别RFID系统部署$U$个阅读器，使每个标签至少能与一个阅读器通信。在丢失标签检测中，处于单个阅读器监控区域之外的标签都会被该阅读器认定为丢失标签，然而，被单个阅读器认定为丢失标签并不代表此标签真正意义的丢失，而是被$U$个阅读器都认为丢失，此标签才是真正的丢失标签。
+
+\begin{definition}
+\label{Definition}
+(真正的丢失标签)。在多阅读器多类别标签RFID系统中，$U$个具有重叠识别区域的阅读器部署到标签分布区域，$\lambda$个标签类别需要被检测。对于第$i$个标签类别，多轮丢失标签检测以后，每一个阅读器都能获取一个针对自身的丢失标签序列。则真正的丢失标签序列为$S=S_1 \bigcap S_2 \bigcap\dots\bigcap S_j \bigcap S_U$，$S_j$是第$j$个阅读器获取的丢失标签序列。
+\end{definition}
+
+如果丢失标签序列$S$为空集，则表明系统存储的待检测标签全都存在，没有此类别的丢失标签，然而，如果$S$不为空，则表明有此类别的丢失标签，丢失事件被检测到。如图\ref{system}所示，针对第一个标签类别，阅读器1检测到的丢失标签序列为$S_1=\{2,3,4,5\}$，阅读器2获取到的丢失标签序列为$S_2=\{1,3,4,5\}$，同样$S_3=\{1,2,3\}$，$S_4=\{1,2,3,4,5\}$，四个阅读器获取丢失标签序列的交集$S=\{3\}$。因此，在第一个标签类别中，标签3是真正的丢失标签。表格\ref{tab:Notations2}总结了本章节中主要使用的符号用语。
+
+\begin{table}[t]
+\bicaption[tab:Notations2]{}{主要符号列表说明}{Tab.}{The list of main notations}
+\centering
+\vspace{0.2cm}
+\dawu
+\begin{tabular}{ll}
+    \hline
+    符号 & 说明\\
+    \hline
+    $\lambda$ & RFID系统中标签类别数量\\
+    $C_i$ & 第$i$个标签类别\\
+    $n_i$ & 标签类别$C_i$中标签数量\\
+    $t_i$ & 标签类别$C_i$的容忍阈值\\
+    $\alpha_i$ & 标签类别$C_i$所需的检测精度\\
+    $U$ & 多阅读器RFID系统中阅读器数量\\
+    $M_i$ & 标签类别$C_i$中实际丢失标签的数量\\
+    $S_i$ & 最终获取的标签类别$C_i$的丢失标签集合\\
+    $\mathcal X_{ri}$ & 对于标签类别$C_i$，阅读器$R_r$需要执行协议的轮数\\
+      $s$ & 对于标签类别$C_i$，阅读器$R_r$需要执行协议的轮数\\
+    $f_{ri}$ & 随机哈希种子\\
+    $f'_{ri}$ & 阅读器$R_r$和标签类别$C_i$下的执行帧长\\
+    $f_{ri}^{op}$ & 阅读器$R_r$和标签类别$C_i$下的最优广播帧长设置\\
+    ${f'}_{ri}^{op}$ & 阅读器$R_r$ 和标签类别$C_i$下的最优执行帧长设置\\
+    $\mathcal{T}_{ri}$ &  标签类别${C}_i$所需要的检测时间\\
+    $u$ & 每个标签类别标签数量的均值\\
+    $\tau$ & 每个标签类别标签数量的标准差\\
+    \hline
+\end{tabular}
+\end{table}
+
+%本章主要考虑一个典型的RFID系统模型，主要由一台服务器、一个阅读器、若干天线和大量的标签组成。阅读器通过多个天线扩展其通信范围，因此能够覆盖大量的标签。服务器与阅读器通过高速以太网相连，并通过LLRP协议控制阅读器识别、读取标签。阅读器读到的标签数据将传回到服务器进行进一步处理和数据持久化。标签被贴到每个商品货物上来实现单品级的监控，为了获取最新的库存信息，服务器定期在$\mathcal{T}=\{t_1, t_2,\cdots,t_{end}\}$ 时刻执行库存更新操作获取最新的标签ID集合$\mathcal{S}$。如图\ref{continuous-scanning-problem}所示，阅读器按计划在$t_i$和$t_{i+1}$ 两个时刻获取最新的库存信息$\mathcal{S}_{i}$ 和 $\mathcal{S}_{i+1}$。在$t_{i+1}$时刻，根据$\Delta t = t_{i+1} - t_{i}$ 时间内标签的变化情况可以将标签分类为分为三类：
+%\begin{itemize}
+ % \item \textbf{新增标签}: $t_i$ 时刻不在系统中， $t_{i+1}$ 时刻在系统中的标签
+ % \item \textbf{原有标签}: $t_i$ 和$t_{i+1}$时刻都在系统中的标签
+%  \item \textbf{丢失标签}: $t_i$ 时刻在系统中， $t_{i+1}$时刻不在系统中的标签
+%\end{itemize}
+
+
+%本章研究如何在连续扫描时，快速找到关键标签集合即新增标签和丢失标签集合中的所有ID，从而通过计算得到现有标签集合$\mathcal{S}_{i+1}$。令$\mathcal{U}=\{u_1,u_2,\cdots,u_{\mathcal{U}}\}$ 表示新增标签集合，$\mathcal{M}=\{m_1,m_2,\cdots,m_{\mathcal{M}}\}$ 表示丢失标签集合，$\mathcal{R}=\{r_1,r_2,\cdots,r_{\mathcal{R}}\}$ 表示原有标签集合，我们有$\mathcal{S}_{i}=\mathcal{R}+\mathcal{M}$， $\mathcal{S}_{i+1}=\mathcal{R}+\mathcal{U}$。 现有标签集合$\mathcal{S}_{i+1}$ 中的ID可以通过$\mathcal{S}_{i+1}=\mathcal{S}_{i} + \mathcal{U} - \mathcal{M}$进行计算。在保证识别一定准确度的前提下，通常将协议的执行时间作为评价协议优劣的主要标准。因为高时效的库存更新操作才能更频繁的执行，从而提供更精准的实时库存。本章所使用的主要符号见表\ref{tab:MissingIdentification}。
+
+
+\section{现有方案及其不足}\label{PriorArtLimitation_inventory_updating}
+\esection{Existing Art and Limitation}
+
+\subsection{相关工作}
+\esubsection{Related Work}
+可以实现丢失标签检测功能的现有协议可分为三种类型:纯标签识别协议\ucite{shahzad2014probabilistic}，丢失标签识别协议\ucite{liu2014multiple,yu2018missing,zhang2011fast,chen2017efficiently}，以及专用丢失标签检测协议\ucite{luo2011efficient,shahzad2015expecting,liu2018fast,tan2010efficient,luo2011efficient,han2019protocol,luo2012probabilistic}。
+
+纯标签识别协议可以精确找出系统里现存的所有标签，通过对比数据库中的标签ID，我们就可以知道是否有丢失的标签。尽管这种方法可以用于丢失标签的检测，但标签识别协议需要获取标签的确切ID，且当标签数量太多，就需要消耗大量的时间用在已知标签的重复搜集，造成丢失标签检测效率低下。丢失标签识别协议目的是只识别丢失标签的ID，而不是所有标签的ID。很显然，这种方法也可以让我们知道RFID系统中是否有标签丢失。虽然他们不必重复搜集已知标签的ID，减少了大量的时间消耗，但是此种协议却不能保证丢失标签检测协议的检测精度。专用丢失标签检测协议不必获取丢失标签ID，只是利用概率和统计的方法随机抽样检测系统内标签是否存在的状态，一旦发现有丢失标签丢失，则协议立即终止并发送警告。丢失标签检测协议在保证检测精度的前提下，对协议执行速率要求更高。
+
+在丢失标签检测协议中，Luo等人提出的高效丢失标签检测协议(Efficient Missing tag Detection，EMD)\ucite{luo2011efficient} 采用抽样的方法，允许很小比例的标签参与来自阅读器的ID轮询。在TRP(Trusted Reader Protocol)\ucite{tan2010efficient}协议中，时间帧中时隙数量得到优化，通过期望时间帧与实际时间帧的对比检测丢失标签。在含有未知标签的RFID系统中，Shahzad等人提出了RUN（RFID monitoring protocol with Unexpect tags）\ucite{shahzad2015expecting}协议，运用多轮次的Aloha 时间帧检测丢失标签是否存在。多哈希种子的丢失标签检测协议（Mulit-Seed Missing tag Detection，MSMD）\ucite{luo2012probabilistic} 采用采样技术与多次哈希的方式筛选时间帧中的单一时隙，检测过程中，如果期望的单一时隙变为空时隙，则可推断丢失标签存在。然而，现存的丢失标签检测协议只是简单的假设RFID系统中只包含单一阅读器单一标签类别，对于多阅读器多类别的RFID 系统，特别是当RFID系统中出现数十种标签类别，此种协议必须统一阅读器参数设置逐一标签类别检测，这样连续的执行模式导致检测时间过长。
+
+
+%最直接的解决方案就是如之前所述那样，在每次需要获取库存信息时执行标签识别协议。例如，帧时隙Aloha协议\ucite{lee2005enhanced,r33} 或查询树协议\ucite{AlexSigmetrics13HoppingTree}，采集当前系统中所有标签的ID。 由于标签随机选取时隙发送消息导致的信号冲突，标签往往需要进行多次尝试才能够成功被阅读器识别。相关研究发现，在参数最优的情况下，平均每个标签仍然需要发送2.73次ID，才能成功被阅读器识别。这就导致其时间帧的吞吐量较低。另外，阅读器需要识别所有标签，在很多时候会造成大量的冗余数据传输。例如，如果两次库存更新操作的间隔$\Delta T$较短，标签集合$\mathcal{S}$ 一般不会发生太大的变化，标签识别协议读取的大部分ID 都是早已被服务器所知的原有标签。因为以上两点，基于标签识别协议的库存更新操作时间效率很差。但它能够保证较高的识别准确度，理论上可以完全识别丢失标签和新增标签，因此适应于对库存精度要求较高的场景。
+
+
+%文献\ucite{ContinuousScanning2010}首次研究了通过丢识别丢失标签和新增标签来实现库存更新操作的方法。Sheng等人提出了基于哈希映射的新增标签识别协议（CU）和丢失标签检测协议（DM）。在CU 和DM中，MAC层依旧使用阿罗哈冲突避免协议来解决冲突问题。不同之处在于，标签会根据哈希函数$\mathcal{H}(\mathrm{ID},\mathcal{R})\mod f$ 来选择时隙发送一个10-bit的数据。假设后端服务器知道标签采用了什么样的哈希函数$\mathcal{H}(\cdot)$，已知标签集合$\mathcal{S}_i$，以及哈希函数所采用的随机种子$\mathcal{R}$，服务器就可以对每个已知标签选择的时隙进行预测，并对时隙的状态进行预测。如果在一个预测为空的时隙中发现了标签发送的数据，阅读器就能确认该标签是新增标签。如果在一个预测包含一个标签的时隙中没有收到任何标签回复，阅读器就能确认原本应该在该时隙发送消息的标签为丢失标签。然而，通关观察空时隙发现新增标签的效率相对较低，阅读器往往需要执行多次CU 才能保证大部分的新增标签被成功发现。此外，丢失标签会对新增标签的识别产生重要的影响。假如一个新增标签和一个丢失标签选择同一个时隙，服务器会将新增标签误认为已经丢失的标签，造成错误。为了减少这种错误，必须使用不同的哈希种子$\mathcal{R}$来执行多次协议，这大大降低了新增标签识别协议CU 的时间效率。
+
+%近年来，一系列的研究工作专注于提升新增标签和丢失标签检测的效率。因为丢失标签检测只能在只包含一个标签的单一时隙进行，Li等人提出的Iterative ID-free Protocol协议（IIP\ucite{li2010identifying}通过提高时间帧中单一时隙所占的比例来提高丢失标签检测的效率。IIP是一种改进型的阿罗哈协议，同样利用了哈希的思想对标签选择的时隙进行了预测。不同之处在于，为了提升单一时隙的比例，阅读器在执行时间帧之前，会广播一个时隙数等长的二进制向量来通知标签其所选择时隙的状态，该二进制向量中`1' 代表冲突时隙，`0'代表非冲突时隙。冲突时隙中的标签以一半的概率发送消息，因此部分冲突时隙有机会转变成单一时隙。理论分析证明了IIP时隙利用率可达52.2\%，与DM 协议相比，提升了40\% 的时隙利用率。此外Zhang 等人研究了多阅读器环境下，如何并行的识别各阅读器下的丢失标签\ucite{RuiZhangMissingSecon}。但在本文只考虑单阅读器的场景，因此文献\ucite{RuiZhangMissingSecon}提出的协议并不适用，并且由于标签划分产生的额外代价时间效率反而比IIP 更差。
+
+%在新增标签识别方面，Liu等人提出的Multi-Paring Unknown Tag Identification协议（MUIP）\ucite{XuanLiuTPDSUnknownTagIDen}，通过两阶段的新增标签检测技术来提高新增标签的识别效率。首先，MUIP 在执行时间帧之前会利用哈希结果计算已知标签$\mathcal{S}_i$ 选择的时隙。根据时隙选择的结果，阅读器广播两个二进制向量来通知标签所选取的时隙的状态，其中一个用于标记预期的空时隙，另外一个用于标记预期的冲突时隙。如果一个标签发现自己选择的时隙是预期的空时隙，那么该标签知道自己是新增标签，并进行自我标记。其次，在执行时间帧的时候，通过观察空时隙中是否有标签回复，可以再次发现一部分新增标签。与仅通过观察空时隙的CU 协议相比，MUIP能够提升10\%$\sim$70\%的时间效率，已知标签数量$|\mathcal{S}_i|$ 越大，MUIP 的提升效果越显著。
+
+%此外，研究人员发现，当丢失标签和新增标签数目过大时，两种标签的相互干扰导致执行丢失标签检测和新增标签识别协议的代价甚至会超过识别所有标签。为了应对这个问题，Liu等人设计了Adaptive Continuous Scanning（ACOS）协议\ucite{Liu2014b} 首先对原有标签的比例进行一次快速估计，根据估计的结果决定是采用关键标签检测方法\ucite{li2010identifying,XuanLiuTPDSUnknownTagIDen} 对丢失/新增标签进行识别，还是采用标准的阿罗哈冲突避免协议
+%
+%\ucite{lee2005enhanced,r33}对所有标签的ID进行识别。然而，该协议依旧没能考虑丢失标签和新增标签之间的冲突问题。
+
+\subsection{主要挑战}
+\esubsection{Challenge Issues}
+通过分析现有的解决方案，我们可以总结出多阅读器多类别标签的RFID系统中丢失标签检测性能仍有很大的提升空间，主要有以下三个挑战亟待解决。
+\begin{itemize}
+  \item 首先，在指定的$t_i\geq 1$、$\alpha_i\in (0,1)$ 下，确保所有标签类别的检测精度。通常单轮次的时间帧检测不能满足丢失标签检测所要求的精度，最直接的办法就是多轮次的检测，然而确切需要的时间帧轮次并不能直接断定。为了解决这个问题，我们首先要严谨的分析量化在单个轮次中成功检测到标签丢失标签的概率，再计算保证每个标签类别检测精度下需要的时间帧数量；
+  \item 其次，为了实现快速的丢失标签检测，MMTD采用了多类别标签并行检测算法，由于每个阅读器监控范围标签类别不统一，因此对于各个类别标签分布范围检测和单个阅读器监控范围内的每个标签类别的数量估计是首要解决的问题；
+
+  %在保证检测精度的条件下，计算最优广播时间帧长$f$和执行时间帧长$f'$的值使丢失标签检测时间最短。给定一对时间帧$f^{op}_i$和$f'^{op}_i$ 的值，我们首先计算标签类别$C_i$在满足检测精度的条件下所需要的检测轮数$\mathcal {X}_i$，然后计算理论的检测时间$\mathcal{T}_{i}=\mathcal X_{i} \times (\tau_{ip}+{f'}_{ri} \times \tau_{ci} )$，其中，$\tau_{ip}$ 表示初始化阅读器查询命令所需要持续的时间，$\tau_{ci}$是标签回复阅读器查询命令每两个帧槽所间隔的时间。通过计算$\mathcal{T}_{i}$对$f$ 以及$f'$ 的偏导数，获取最佳的$f$和$f'$使$\mathcal{T}_{i}$最小，此时，$f^{op}_i$与$f'^{op}_i$应分别设置为$n_i$和$\min\{f,512\}$。
+  \item 最后，任意一个标签类别$C_i$的分布空间和任意阅读器监控范围内该类别标签数量未知，且随着丢失标签检测协议的执行，标签数量也在不断发生变化，如何给阅读器分配最优播时间帧长$f$ 和执行时间帧长$f'$的值，差异化阅读器参数是使丢失标签检测时间最短的关键问题。
+\end{itemize}
+
+\section{MMTD协议设计}\label{Design_of_ MMTD}
+\esection{Design of MMTD}
+\begin{figure}[t]
+    \setlength{\abovecaptionskip}{0pt}
+    \setlength{\belowcaptionskip}{0pt}
+  \centering
+  \includegraphics[width=0.6\textwidth]{SMTD111}
+  \bicaption[SMTD111]{}{SMTD\ucite{liu2018fast}丢失标签检测的基本思想}{Fig.}{Basic idea of missing tag detection on SMTD}
+\end{figure}
+\subsection{阅读器冲突检测}
+\esubsection{R2Rc detection}
+\floatname{algorithm}{算法}
+\begin{algorithm}[t]
+%\SetAlgoNoLine
+\DontPrintSemicolon % Some LaTeX compilers require you to use \dontprintsemicolon instead
+\KwIn{阅读器数量：U；需要颜色的数量：$M(M\leq U)$；
+阅读器间的关系数组：$\mathcal{R}$}；初始
+化各阅读器监控区域的颜色：Y[0:m-1]=-1；flag=0；\\
+\KwOut{颜色使用最少的阅读器调度分组方案；}；
+      \begin{algorithmic}[1]
+		\Function {Nocollision}{int $k$}\\
+            \For {each i $\in$ [0,k-1)}{
+                \uIf {$X[k][i]==1$$\land$$Y[k]==Y[i]$}{
+                return false;
+                \Else{
+                return true; }
+                }
+            }
+		\EndFunction
+
+        \Function {Graphcolor}{int $t$}\\
+            p = 0;\\
+            \If{$t>=m$}{
+		           flag=1;
+            }\\
+		
+		      \While {!flag $\land$ $p < M$ }{
+		           $Y[t]=p$;
+                     $p=p+1$;
+		              \If{Nocollision(t)}{
+		                  Graphcolor(t+1);
+		                  }
+		              }\\
+	           	\If{$t==0$}{
+		               return null;
+		              }
+        \EndFunction \\
+        Graphcolor(0);
+		\label{code:recentEnd}
+
+	\end{algorithmic}
+
+\caption{阅读器避免R2Rc的调度算法}
+\label{algo:tag_logic_fcs}
+\end{algorithm}
+ 在MMTD协议执行之前，为了实现阅读器无R2Rc分组，首先要确定的是相邻两个阅读器是否有交叉通信区域。判断两个阅读器时候有信号交叉区域最常用的方法有三种：无线信号强度检测专用仪器测量法，无线信号传输距离计算法，标签识别试探法。无线信号强度检测专用仪器测量法通过辅助仪器测量两个阅读器中间区域两个阅读器的传输信号强度判断是否有信号交叉，如果在中间区域同时检测到两个阅读器的传输信号强度，则表明有信号交叉区域，如果只检测到一个信号强度或无信号强度，则表明两阅读器无信号交叉；虽然此种方法可以有效检测信号交叉区域，但需要额外的设备辅助。无线信号传输距离计算法通过无线信号自由空间损耗算法计算RFID无线信号传输距离，但是理论的传输距离并不代表真实的传输距离，因为无线信号的传输容易受周围环境影响，能量传输路径上任何的障碍都会缩短RFID无线信号的传输距离。标签识别试探法通过在两阅读器中间区域放置标签的方法判断是否存在信号交叉，如果两个阅读器都能识别此标签，则存在信号交叉，否则，不存在信号交叉，此种方法不需要额外的辅助设备，且可排除环境干扰造成的识别影响，方法更直接，简便。因此，在确定两阅读器之间是否有交叉通信区域方面直接采用标签识别试探法来完成。$1$表示两阅读器间有交叉信号，$0$表示没有。
+
+ 获取两两阅读器是否有重叠信号区域后，我们就能获取一个$U\times U$的矩阵$\mathcal{R}$(假如RFID系统中含有$U$个阅读器)，最后利用阅读器调度算法ColorWave\ucite{waldrop2003colorwave}（贪心算法）来实现阅读器的最少分组，算法描述如算法~\ref{algo:tag_logic_fcs}所示。
+ 使每个分组内两两阅读器之间没有重叠信号，且处于同一个小组内的阅读器同时开启和关闭。各个阅读器分组按照排序依次完成丢失标签检测，因此，R2Rc的影响可以被有效避免。
+\begin{equation}\nonumber
+\begin{aligned}
+\mathcal{R}=\left[
+\begin{matrix}
+0 &1 &1 &0\\
+1 &0 &0 &1\\
+1 &0 &0 &1\\
+0 &1 &1 &0
+\end{matrix}
+\right]\\
+\end{aligned}
+\end{equation}
+
+
+\subsection{类别标签分布感知}
+\esubsection{Estimation of population}
+ 阅读器为避免R2Rc影响进行群组分割后，各群组依次检测监控范围内标签的丢失状况。群组内的每个阅读器采用相同的参数，且每个阅读器均执行SMTD（Simultaneous Missing Tag Detection）\ucite{liu2018fast}的并行丢失标签检测协议。但是标签能够与哪些阅读器通信以及单个阅读器监控区域内每个类别标签数量仍然未知，无法实现阅读器参数配置，因此，类别标签分布区域感知成为协议执行以及参数优化必须解决的问题。在第一轮执行时，由于阅读器分组监控区域内每个类别标签数量未知，广播帧长则直接设置为$n_{max}$，$n_{max}$表示$\lambda$ 个标签类别中数量最大值，执行帧长仍然为$\min\{f,512\}$。 阅读器执行一次SMTD后可以获取一个合并标签返回信号，如图\ref{SMTD111}所示，基于曼彻斯特定理，合并信号可以解码为$\lambda$个类别数组，类别数组代表单个标签类别与广播帧的映射情况。通过对单个类别数组分析估算此类别标签在此区域的标签数量。
+
+标签数量估测算法并非获取绝对正确的标签数量值，获取的是一个具有一定精度的数值。相关算法也很多，例如Zero-one Estimation (ZOE)\ucite{zheng2013zoe}利用采样方法使一小部分标签回复阅读器问询，通过计算广播帧中忙时隙的占比求得标签数量。然而在多类别RFID系统，ZOE 仍需逐个类别估计标签数量，时效性仍有很大的提升空间。Physical Layer Cardinality Estimation (PLACE)\ucite{hou2015place}利用物理层信息获取每个时隙中响应的标签数量，并通过计算多种冲突时隙的占比来估测标签数量，虽然此种方法可以获取更高精度的估测数值，但是PLACE的设计基于GNURadio/USRP 平台设计，普通的商业设备无法获取此类信息。Simultaneous Estimation for Multi-category (SEM)\ucite{liu2016multi}能够并行估计多个类别的标签数量，解码多类别合并时间帧成多个单类别时间帧，并计算单类别时间帧中空时隙占比获取类别标签数量，此种方法可以快速并行估计多类别标签的数量。MMTD中直接采用SEM标签数量估测算法完成各阅读器分组中每个类别的标签数量估计。根据每个阅读器下各个类别标签的数量，可以推断任意阅读器$r$监控任意一个标签类别$C_i$的数量$n_{ri}$，在此阅读器分组区域的类别$C_i$标签总量为$N_g=\sum_{r=1}^{w}n_{ri}$，$w\in[1,U]$，$w$为此阅读器分组内的阅读器数量。
+
+获取阅读器分组内各个类别的标签数量之后，如果类别标签数量相差悬殊，则组内阅读器执行SMTD+CC（Simultaneous Missing Tag Detection + Category Clustering）\ucite{liu2018fast}协议，如果类别标签数量相差不多，则优化的广播帧长设置为类别标签数量均值。由此可以发现，MMTD协议比SMTD+CC协议多了阅读器间是否冲突验证，阅读器避免冲突调度算法(贪心算法)，以及阅读器分组内各个类别标签数量估计算法。
+
+
+
+
+
+
+\subsection{丢失标签检测}
+\begin{figure}[t]
+    \setlength{\abovecaptionskip}{0pt}
+    \setlength{\belowcaptionskip}{0pt}
+  \centering
+  \includegraphics[width=0.50\textwidth]{batches}
+  \bicaption[batches]{}{聚类分割协议的基本思想\ucite{liu2018fast}}{Fig.}{Basic idea of Category Clustering}
+\end{figure}
+\esubsection{Detection of missing tags}
+为了实现多类别丢失标签的快速检测，每个阅读器均采用多类别标签并行检测的方式。 在检测开始时，阅读器广播时间帧初始化参数$\langle f, s\rangle$到所有标签，其中$f$表示在即将到来的时间帧中时隙数量，$s$是一个随机哈希种子。接收到这两个参数后，每个标签利用自身ID计算哈希函数$c\!=\!\mathcal{H} (ID,s)\!\mod \!f$并重置它的时隙计数器为$c$。随后，阅读器在每个时隙的末尾广播一个\emph{QueryRep}命令通知每个标签将其时隙计数器$sc$减1。一旦时隙计数器变为0，标签将使用\emph{ON-OFF} 键控调制向阅读器回复标签类别标识符。位$1$表示有载波存在，位$0$表示没有载波存在。对于一个被多个标签选择的时隙，在该时隙的混合信号逻辑上应该等于在此时隙回复的所有标签类别标识符的逻辑或操作。如图\ref{SMTD111} 所示，一个时隙有两种状态：空时隙和忙时隙。空时隙表示在此时隙没有标签回应；忙时隙表示在此时隙至少有一个标签响应并且该时隙的混合信号能够被阅读器接收。由于实际限制，一个时间帧中能够被执行的时隙不能超过512\ucite{shahzad2014fast}。因此，当执行时隙数量超过$512$ 时，我们必须终止此时间帧的执行。
+
+在一个时间帧中，根据接收到的前$512$个混合信号，我们可以解码得到$\lambda$个时隙占用向量：$\mathcal F_1,\mathcal F_2,\cdots,\mathcal F_\lambda$，每个时隙占用向量包含$512$位字符串。依据时间帧中的第$j$个时隙接收到$\lambda$位组合信号$\mathcal E$，$j\in [0,f-1]$，我们可以设置该时隙第$i$位的矢量。具体来说，如果发现位$\mathcal E[i]$等于$1$，则可以设置$\mathcal F_i[j]=1$，否则，我们设置$\mathcal F_i[j]=0$，其中$i\in[1,\lambda]$。 如果它是空时隙，则设置该时隙的矢量$\lambda$位全为$0$。通过分解混合信号我们可以得到$\lambda$个二进制向量，每一个向量都反应单个类别标签选择时隙的情况。
+
+例如，$\mathcal F_2[1]=1$意味着类别$C_2$中的至少一个标签选择了第一个时隙。因为我们在服务器端存储了所有的标签ID以及记录下此次协议执行时的哈希参数，所以在协议执行之前就能预测每个类别的时隙占用向量。如果类别丢失了一些标签，在预测的该类别时隙占用向量其对应的位本应该为$1$，但是在实际检测中，由于缺少对应标签回应，则该位置可能变为$0$。 这样一种现象可以作为我们判断类别$C_i$ 中是否有标签丢失的直接依据。因此，每个时隙占用向量可以直接用于相对应类别丢失标签检测。
+
+在每个阅读器的监控范围内不同的标签类别通常有不同的标签数量以及不同的检测精度要求，这样对最优广播帧长度$f^{op}$以及最佳执行帧大小$f'^{op}$会有不同的需求。在同一时间帧中，平均帧大小可能不适合所有$\lambda$个标签类别。因此，武断的执行可能会导致丢失标签检测时间变长。
+
+对于任意标签类别$C_i$，已知标签数量$n_i$，容忍阈值$t_i$，以及所要求的检测精度$\alpha_i$都存储在服务器端。据我们所知，对于单个类别标签的RFID系统，当广播时间帧长与标签数量相同时，丢失标签检测效率最高。由于标签类别数量增多和各个类别标签数量的差异性，采用统一的各标签类别数量的均值作为时间帧的长度会降低丢失标签检测效率。因此，我们引入标签类别分割方法，如图~\ref{batches}所示，利用阅读器对监控范围内各个类别标签数量的估值计算其最优的广播帧长$f^{op}$以及最佳的执行帧长$f'^{op}$，并根据最优帧大小$\{\langle f^{op}_1, f'^{op}_1\rangle,\langle f^{op}_2, f'^{op}_2\rangle,\cdots,\langle f^{op}_\lambda, f'^{op}_\lambda\rangle\}$，运用K-means聚类分割算法，我们把标签类别分成$\aleph$ 个分组$\mathcal B_1,\mathcal B_2,\cdots，\mathcal B_\aleph$。每个分组$\mathcal B_1$都是标签类别的集合，且它们的最优的帧长大小$f^{op}$和$f'^{op}$相近。各个分组依次并行检测丢失标签，单个分组内的所有标签类别采用分组内各类别标签数量均值作为时间帧的长度。且对于各标签类别数量有较大差异的丢失标签检测，SMTD\ucite{liu2018fast} 协议已经验证聚类分割的办法可以大幅提高协议执行效率。
+
+\section{参数优化}\label{Optimize the parameters of MMTD}
+\esection{Optimize the parameters of MMTD}
+对于阅读器$R_r$执行单个时间帧通常不能满足丢失标签检测任务需求，本节首先计算阅读器$R_r$满足丢失标签检测精度要求所需要的时间帧数量$\mathcal X_{ri}$。根据协议执行时间求导计算最优的广播时间帧大小$f_{ri}^{op}$和执行帧大小${f'}_{ri}^{op}$。
+
+\subsection{时间帧数量$\mathcal X_{ri}$}
+\esubsection{Number of Frames $\mathcal X_{ri}$}
+我们利用$p_{ri}^0$表示阅读器$R_r$ 检测标签类别$C_i$时，帧占用向量中任意一位为$0$的概率。
+\begin{equation}\label{emptyproability}
+\begin{aligned}
+\hspace{0in} p_{ri}^{0}=\left(1-\frac{1}{f_{ri}}\right)^{ {n_{ri}}}, %\approx e^{-\frac { {n_{ki}}}{f_{ki}}}
+\end{aligned}
+\end{equation}
+其中，$n_{ri}$为阅读器估测标签类别$C_i$在阅读器$R_r$监控范围内的标签数量，$f_{ri}$为其对应的广播帧长，${f'}_{ri}$为执行帧长，且${f'}_{ri}\!=\!\min\{f_{ri},512\}$。 阅读器执行$\mathcal X_{ri}$轮后，一个真正的丢失标签至少能被检测到一次的概率表述如下：
+\begin{equation}\label{detectionprobability_xrounds}
+\begin{aligned}
+1-\left(1-\frac{f'_{ri}}{f_{ri}}\times p_{ri}^{0}\right)^{\mathcal X_{ri}}
+\end{aligned}
+\end{equation}
+
+因此，我们可以计算一个丢失标签能被真正发现的概率为：
+\begin{equation}\label{detectionprobability_a_missingtag}
+\begin{aligned}
+\left[1-\left(1-\frac{f'_{ri}}{f_{ri}}\times p_{ri}^{0}\right)^{\mathcal X_{ri}}\right]^W
+\end{aligned}
+\end{equation}
+$W$为类别标签$C_i$被$W$个阅读器监控，$W\in[1,U]$。如果标签类别$C_i$ 中有$t_i$个标签丢失，则丢失标签事件能被检测到的概率为至少一个丢失标签能被发现的概率，其表述如下：
+\begin{equation}\label{detectionprobability_xrounds}
+\begin{aligned}
+1-\left\{1-\left[1-\left(1-\frac{f'_{ri}}{f_{ri}}\times p_{ri}^{0}\right)^{\mathcal X_{ri}}\right]^W\right\}^{t_i}
+\end{aligned}
+\end{equation}
+
+为了满足检测精度$\alpha_i$，则
+\begin{equation}\label{detectionprobability_xrounds}
+\begin{aligned}
+1-\left\{1-\left[1-\left(1-\frac{f'_{ri}}{f_{ri}}\times p_{ri}^{0}\right)^{\mathcal X_{ri}}\right]^W\right\}^{t_i}\ge \alpha_i
+\end{aligned}
+\end{equation}
+因此，$\mathcal X_{ri}$必须满足如下不等式：
+\begin{equation}\label{requiredrounds}
+\begin{aligned}
+\mathcal X_{ri}\ge \frac{\ln\left(1-\sqrt[W]{1-\sqrt[t_i]{1-\alpha_i}}\right)}{\ln\left[1-\frac{{f'}_{ri}}{f_{ri}}\left(1-\frac{1}{f_{ri}}\right)^ {{n_{ri}}}\right]}
+\end{aligned}
+\end{equation}
+为了优化协议执行性能，$\mathcal X_{ri}$取其最小值。
+\begin{equation}\label{requiredrounds}
+\begin{aligned}
+\mathcal X_{ri} = \frac{\ln\left(1-\sqrt[U]{1-\sqrt[t_i]{1-\alpha_i}}\right)}{\ln\left[1-\frac{{f'}_{ri}}{f_{ri}}\left(1-\frac{1}{f_{ri}}\right)^ {{n_{ri}}}\right]}
+\end{aligned}
+\end{equation}
+
+
+\subsection{优化时间帧大小$f_{ri}$和执行帧大小${f'}_{ri}$}
+\esubsection{Optimize Frame Size $f_{ri}$ and ${f'}_{ri}$}
+在满足检测精度的前提下，阅读器$R_r$对标签类别$C_{ri}$所需要的检测时间为：
+\begin{equation}\label{MinTime}
+\begin{aligned}
+\hspace{0in} \mathcal{T}_{ri}&=\mathcal X_{ri} \times (\tau_{ip}+{f'}_{ri} \times \tau_{ci} )\\
+&=\frac{\ln\left(1-\sqrt[U]{1-\sqrt[t_i]{1-\alpha_i}}\right)}{\ln\left[1-\frac{{f'}_{ri}}{f_{ri}}\left(1-\frac{1}{f_{ri}}\right)^ { {n_{ri}}}\right]}\times (\tau_{ip}+{f'}_{ri} \times \tau_{ci})
+\end{aligned}
+\end{equation}
+其中$\tau_{ip}$ 为阅读器发送问询命令$\texttt{Query}$所需要的时间，$\tau_{ip}=\tau_w+16\times 37.7~us$；$\tau_ {ci}$为标签回复阅读器问询所需要的的时间，$\tau_ {ci}=\tau_w+\lambda\times 18.8~us$；$\tau_w$为任意两个连续时隙数据传输的间隔时间，$\tau_w$为$302~us$ \ucite{shahzad2014fast}。
+
+为了寻找最优的广播时间帧$f_{ri}$和执行帧$f'_{ri}$，我们求解协议执行时间$\mathcal{T}_{ri}$对$f_{ri}$和$f'_{ri}$的偏导数并提出对应的定理。
+
+\begin{theorem}
+对于任意阅读器 $R_r$，假设有 $n_{ri}$个属于类别$C_i$的标签处于其监控范围内。为了获得最小的丢失标签检测时间$\mathcal{T}_{ri}$，最优的广播时间帧应设为$f_{ri}^{op}\!=\! {n_{ri}}+1$，最优的执行帧应设为 ${f'}_{ri}^{op}$ is $\min\{f_{ri}^{op},512\}$, $i\in[1,\lambda]$ ，$r\in[1,U]$。
+\end{theorem}
+
+\begin{proof}
+ \vspace{-0.05in}
+\begin{small}
+\begin{equation}\label{MMTDoptimalfandf}
+\begin{aligned}
+\hspace{0in}
+  \frac{\partial \mathcal{T}_{ri}}{\partial f_{ri}}&=\frac{{f'}_{ri} \left(1-\frac{1}{f_{ri}} \right )^{ {n_{ri}}}}{\ln^2 \left(1-\frac{{f'}_{ri}}{f_{ri}}(1-\frac{1}{f_{ri}})^{ {n_{ri}}}\right)}\\
+                                                                 &\times \frac{\ln(1-p_{ri})( {n_{ri}}+1-f_{ri})(\tau_{ip}+{f'}_{ri} \times \tau_{ci})}{\left[1-\frac{{f'}_{ri}}{f_{ri}}(1-\frac{1}{f_{ri}})^{ {n_{ri}}} \right]}
+\end{aligned}
+\end{equation}
+\end{small}
+
+从公式~\ref{MMTDoptimalfandf}我们可以发现，当$f_{ri}= {n_{ri}}+1$时，$\frac{\partial \mathcal{T}_{ri}}{\partial f_{ri} }=0$；$f_{ri}< {n_{ri}}+1$时，$\frac{\partial \mathcal{T}_{ri}}{\partial f_{ri} }< 0$；$f_{ri}> {n_{ri}}+1$时，$\frac{\partial \mathcal{T}_{ri}}{\partial f_{ri} }>0$。由此可以推断，$\mathcal{T}_{ri}$最小时，$f_{ri}^{op}$应取值${n_{ri}}+1$。为了获得最优的执行帧长，$\mathcal {T}_{ri}$对${f'}_{ri}$的一阶偏导数计算如下：
+\vspace{-0.05in}
+%\begin{small}
+\begin{equation}\label{optimalfandf'}
+\begin{aligned}
+\hspace{0in} \frac{\partial \mathcal{T}_{ri}}{\partial {f'}_{ri}}=\frac{\mathcal{B}\ln(1-p_{ri})}{\ln^2\left[1-\frac{{f'}_{ri}}{f_{ri}}(1-\frac{1}{f_{ri}})^{ {n_{ri}}}\right]}
+\end{aligned}
+\end{equation}
+%\end{small}
+其中$\mathcal{B}=\tau_{ci}{\ln(1-\frac{{f'}_{ri}}{f_{ri}e})}+\frac{\tau_{ip+f'_{ri}\tau_{ci}}}{f_{ri}e-{f'}_{ri}} $。其次，$\mathcal{B}$对对${f'}_{ri}$的一阶偏导数计算如下：
+\vspace{-0.05in}
+\begin{equation}\label{MMTD2optimalfandf'}
+\begin{aligned}
+\hspace{0in} \frac{\partial \mathcal{B}}{\partial f_{ri}}=\frac{-{f'}_{ri}^2\tau_{ci}-f_{ri}e\tau_{ip}}{(f_{ri}e-{f'}_{ri})^2{f_{ri}}}<0
+\end{aligned}
+\end{equation}
+由公式\ref{optimalfandf'} 和\ref{MMTD2optimalfandf'}可知，当$f_{ri}$取用其最优值$\hat {n_{ri}}+1$时，$\mathcal{B}>0$；$\mathcal{T}_{ri}$是关于$f'_{ri}$ 的递减函数，因此，$f'_{ri}$应取值$\min\{f_{ri}^{op},512\}$。
+\end{proof}
+\subsection{动态调整与协议终止}\label{ Dynamically Adjusting and Determining Termination}
+\esubsection{ Dynamically Adjusting and Determining Termination}
+根据上节参数优化可知，$f_{ri}^{op}$取值${n_{ri}}+1$，$f'_{ri}$取值$\min\{f_{ri}^{op},512\}$时，阅读器$R_r$对监控区域内的标签类别$C_i$ 检测时间最短。然而，前文已经提到，阅读器$R_r$监控区域内标签类别$C_i$ 的标签数量${n_{ri}}$未知。因此，在协议开始执行时，我们简单的设置$f_{ri}=n_i$，$f'_{ri}=\min\{512,f_{ri}\}$，$n_i$是类别标签$C_i$的数量。随之利用聚类分割算法把标签类别划分为多个分组，每个分组实际的广播帧长为分组内所有类别标签最优广播帧长的平均值。第一轮协议执行后，获取的类别占用时间帧数组反馈给SEM\ucite{liu2016multi}算法，利用SEM算法估测每个阅读器监控区域内每个类别标签的数量。在接下来的检测轮次中，不断用新获取的估值$n_{ri}$优化广播时间帧以及调整类别分组。
+
+另外，阅读器执行MMTD的轮数$\mathcal X_{ri}$也不是一个固定数值，$\mathcal X_{ri}$随着$n_{ri}$ 改变增加或减少， 但执行轮数越多，$n_{ri}$ 越接近真实值，稳定性越强，因此，$\mathcal X_{ri}$最终趋于恒定。假设阅读器$R_r$已经针对标签类别$C_i$执行MMTD协议$y$轮，在第$x$ 轮($x\in[1,y]$)，我们很容易获取空时隙在广播帧中的占比$p^0_x$，且$f^x_{ri}$和$f'^x_{ri}$已知。一个真正丢失标签在此轮中能被发现的概率为$p^0_x\times \frac{f'^x_{ri}}{f^x_{ri}}$。执行$y$轮，一个真正丢失的标签能被检测出的概率为$1-\prod_{x=1}^y (1-p^0_x\times \frac{f'^x_{ri}}{f^x_{ri}})$。如果这个概率大于$\sqrt[W]{1-\sqrt[t_i]{1-\alpha_i}}$，则协议可终止执行。每个阅读器发现一个真正丢失标签的概率为$\sqrt[U]{1-\sqrt[t_i]{1-\alpha_i}}$，则$W$个阅读器发现一个真正丢失标签的概率为$1-\sqrt[t_i]{1-\alpha_i}$。$t_i$ 个丢失至少有一个被发现，则可断定丢失标签被成功检测到，其概率为$1-[1-(1-\sqrt[t_i]{1-\alpha_i})]^{t_i}$，且等于类别标签$C_i$所需要的检测精度$\alpha_i$。 这意味着动态终止协议执行的方式满足丢失标签预定检测精度要求。
+
+%\section{统一参数设置}\label{SMTD_protocol}
+%\esection{The Design of Simultaneous Missing Tag Detection Protocol}
+
+%针对多阅读器多类别的RFID系统，本节首先提出了一种并行丢失标签检测（SMTD）协议，在SMTD协议中，所有阅读器的参数采用统一设置，对于各个阅读器接收到的时间帧采用位或运算，位或运算后的汇总帧向量与一个超级阅读器获取的时间帧向量相同，因此，我们把多阅读假设为一个能覆盖大范围标签监控区域的超级阅读器。与以往丢失标签协议逐一类别检测的方法相比，SMTD运用曼彻斯特编码逻辑解码冲突时隙中的混合信号，并把混合信号分解为独属单个类别的多个类别映射向量，实现多类别丢失标签的并行检测功能。
+
+
+%为了解决上述三个挑战，本节首先提出了一种动态标签标签识别（FCS）协议，使用多类标签过滤器（MCF）技术同时对新增标签、丢失标签、原有标签进行分类和识别。在分类过程中被成功识别的标签被静默，且不会再向阅读器发送数据。因此，各类标签之间个干扰逐渐的减少，从而减少了动态标签的识别代价。而现有的动态系统标签ID识别方案通常需要串行的执行新增标签识别协\ucite{ContinuousScanning2010,XuanLiuTPDSUnknownTagIDen} 和丢失标签检测协议
+%%
+%\ucite{li2010identifying}。不管先识别哪类标签，都会面临另外一类的干扰，因此时间效率较差。
+
+%最后，本小节研究了FCS协议中关键的系统参数对协议执行代价的影响，从理论角度优化了系统的参数设置，以在满足预定检测精度的前提下最小化执行FCS协议进行动态标签识别的时间代价。
+
+
+%\subsection{SMTD协议设计}\label{Protocol Design of SMTD}
+%\esubsection{Protocol Design of SMTD}
+%在SMTD协议执行之前，我们需要给每个标签写入$\lambda$位类别标识符。类别标识符是代表一个标签属于类别$C_i$的二进制串，该二进制串中只有第$i$ 位为1，其余位全为0。这样的设置可以更方便阅读器执行\emph{SELECT}命令。当阅读器发送\emph{SELECT}命令时去激活第$i$个标签类别是，只有写入类别标识符且属于第$i$个类别的标签能够被激活。我们把每个标签都写入类别标识符之后调用SMTD协议，为保证丢失标签检测精度，SMTD协议需要执行多个时间帧。在单次时间帧执行时，阅读器广播时间帧初始化参数$\langle f, s\rangle$到所有标签，其中$f$表示在即将到来的时间帧中时隙数量，$s$ 是一个随机哈希种子。接收到这两个参数后，每个标签利用自身ID计算哈希函数$c\!=\!\mathcal{H} (ID,s)\!\mod \!f$并重置它的时隙计数器为$c$。然后，阅读器在每个时隙的末尾广播一个\emph{QueryRep}命令通知每个标签将其时隙计数器$sc$减1。一旦时隙计数器变为0，标签将使用\emph{ON-OFF} 键控调制向阅读器回复标签类别标识符。位$1$表示有载波存在，位$0$表示没有载波存在。对于一个被多个标签选择的时隙，在该时隙的混合信号逻辑上应该等于在此时隙回复的所有标签类别标识符的逻辑或操作。如图\ref{SMTD} 所示，一个时隙有两种状态：空时隙和忙时隙。空时隙表示在此时隙没有标签回应；忙时隙表示在此时隙至少有一个标签响应并且该时隙的混合信号能够被阅读器接收。由于实际限制，一个时间帧中能够被执行的时隙不能超过512\ucite{shahzad2014fast}。因此，当执行时隙数量超过$512$ 时，我们必须终止此时间帧的执行。
+
+%在一个时间帧中，根据接收到的前$512$个混合信号，我们可以解码得到$\lambda$个时隙占用向量：$\mathcal F_1,\mathcal F_2,\cdots,\mathcal F_\lambda$，每个时隙占用向量包含$512$位字符串。对于时间帧中的第$j$ 个时隙接收到$\lambda$ 位组合信号$\mathcal S$，则我们依据组合信号设置该时隙第$i$位的矢量。具体来说，如果我们发现位$\mathcal S[j]$等于$1$，则我们设置$\mathcal F_j[i]=1$，否则，我们设置$\mathcal F_j[i]=0$，其中$j\in[1,\lambda]$。 如果它是空时隙，我们设置该时隙的矢量$\lambda$位全为$0$。然后，我们可以得到$\lambda$个二进制向量，每一个向量都反应单个类别标签选择时隙的情况。例如，$\mathcal F_2[1]=0$意味着类别$C_2$中的一个标签选择了第一个时隙。因为我们在服务器端存储了所有的标签ID 以及记录下此次协议执行时的哈希参数，所以在协议执行之前我们就能预测每个类别的时隙占用向量。如果类别丢失了一些标签，在预测的该类别时隙占用向量其对应的位本应该为$1$，但是在实际检测中，由于缺少对应标签回应，则该位置可能变为$0$。 这样一种现象可以作为我们判断类别$C_i$ 中是否有标签丢失的直接依据。因此，每个时隙占用向量可以直接用于相对应类别丢失标签检测。接下来我们将详细介绍在满足检测精度的条件下优化哈希参数使检测效率更高。表格\ref{tab:Notations} 总结了本文中使用的大部分符号用语。
+
+
+
+
+
+
+%动态标签识别协议FCS利用哈希映射和标签签名来对新增、丢失和原有标签进行识别。与原有协议相比，FCS使用多类标签过滤器技术提升了标签识别的效率，通过逐渐静默已经识别的标签，减少了新增、丢失和原有标签相互之间的干扰，提升了动态标签的识别效率。FCS由\textbf{基于多类标签过滤器的新增标签检测}、\textbf{基于签名的标签分类}和\textbf{新增标签识别}三个主要阶段组成
+%\begin{enumerate}
+  %\item 在第一阶段，服务器首先会根据历史标签ID信息，利用\ref{mcf_technique}小节中提到的技术构建$w$位多类过滤器。多类过滤器存储了时隙状态的预测结果。通过广播多类过滤器，阅读器对映射到空时隙和单一时隙的新增标签进行标记，减少了新增标签对丢失标签识别的干扰。此外，多类过滤器同样起到指导向量的作用，能够跳过空时隙和冲突隙，提升了下一阶段基于签名的标签识别效率。
+ % \item 在第二阶段，阅读器会执行改进的阿罗哈协议来，根据多类过滤器的指引，跳过无用时隙。只在预期的单一时隙与标签进行通信。每个单一时隙中的标签会向阅读器发送一个基于ID生成的短签名，阅读器会检查这个签名是否与预期的一致，从而判断该标签是原有标签还是新增标签。这种签名机制进一步减少了失标签和新增标签之间的干扰。在执行识别协议的过程中，如发现一个空时隙，阅读器就能断定，其对应的是丢失标签；如果发现签名一致的单一时隙，阅读器就能断定对应标签是原有标签；如果发现签名不一致的单一时隙，阅读器就能断定对应标签是新增标签，且原标签已经丢失。对于在时隙中检测到的标签，阅读器会发送对应的ACK消息进行标记。被标签的标签会被静默，在这个阶段不会再向阅读器发送消息，从而缓解了标签之间的冲突，提高了标签的分类效率。冲突时隙中的标签不能被识别，因此前两阶段需要执行多轮，使用不同的哈希种子对它们进行重新映射，直到所有的标签都被成功分类。
+ % \item 在第三阶段，阅读器执行基本的标签识别协议收集新增标签的ID 信息。阅读器只需要将新增标签激活，并调用基于冲突避免协议\ucite{lee2005enhanced,AlexSigmetrics13HoppingTree}，对新增标签进行识别即可。
+%\end{enumerate}
+
+%接下来，我们将详细介绍这三个阶段的具体过程，并从理论上分析了如何设定合适的参数来优化协议的精度和效率。
+
+%\begin{figure}[t]
+  %%  \setlength{\abovecaptionskip}{0pt}
+   % \setlength{\belowcaptionskip}{0pt}
+ % \centering
+  %\includegraphics[width=1\textwidth]{fig_design_mcf}
+ % \bicaption[multi-category-filter-design]{}{2 位多类别标签过滤器的基本思想}{Fig.}{The basic idea of 2-bit multiple categories filter}
+%\end{figure}
+
+%\subsection{参数优化}\label{Parameter Optimization}
+
+%\esubsection{Parameter Optimization}
+%在单个时间帧中，属于类别$C_i$的一个丢失标签能被发现需要满足两个条件：1.它选择一个时间帧中前$f'$个时隙回应阅读器的问询；2.没有其他的现存标签选择与之相同的时隙。因此，在一个时间帧中，我们把类别$C_i$中一个丢失标签能被发现的概率表示为$p_i$，其计算如下。
+
+%\begin{equation}\label{emptyproability}
+%\begin{aligned}
+%\hspace{0in} p_i=\frac{f'}{f}\times\left(1-\frac{1}{f}\right)^{ {n_i-m_i}},
+%\end{aligned}
+%\end{equation}
+
+%在一个时间帧中只要发现类别$C_i$丢失的$m_i$个标签中的至少一个，我们就能推断丢失标签事件的存在。因此，在一个时间帧中，对于标签类别$C_i$，我们把执行SMTD能够发现丢失标签事件的概率表示为$P_i$，其计算公式如下。
+
+%\begin{equation}\label{emptyproability}
+%\begin{aligned}
+%\hspace{0in} P_i=1-\left(1-p_i \right)^{m_i}=1-\left[1-\frac{f'}{f}\times\left(1-\frac{1}{f}\right)^{ {n_i-m_i}}\right]^{m_i},
+ %\approx e^{-\frac { {n_{ki}}}{f_{ki}}},
+%%\end{aligned}
+%\end{equation}
+
+%协议执行单轮帧可能无法满足类别$C_i$所要求的检测精度。因此，我们需要执行$\mathcal X_i\geq1$个时间帧。$P_{\mathcal X_i}$表示协议执行$\mathcal X_i$ 个时间帧后，丢失标签事件能被发现的概率，其计算方法如下。
+
+%\begin{equation}\label{emptyproability}
+%\begin{aligned}
+%\hspace{0in} P_{\mathcal X_i}=1-\left(1-P_i \right)^{\mathcal X_i}=1-\left[1-\frac{f'}{f}\times\left(1-\frac{1}{f}\right)^{ {n_i-m_i}}\right]^{\mathcal X_i\cdot m_i},
+%\end{aligned}
+%\end{equation}
+
+%如果类别$C_i$中实际丢失的标签数量超过容忍阈值$t_i$，即$m_i\geq t_i$，概率$P_{\mathcal X_i}$具有如下不等式的性质。
+
+%\begin{equation}\label{emptyproability}
+%\begin{aligned}
+%\hspace{0in} P_{\mathcal X_i}\geq1-\left[1-\frac{f'}{f}\times\left(1-\frac{1}{f}\right)^{ {n_i}}\right]^{\mathcal X_i\cdot t_i},
+ %\approx e^{-\frac { {n_{ki}}}{f_{ki}}},
+%\end{aligned}
+%\end{equation}
+
+%对于标签类别$C_i$，为了使丢失标签检测概率大于或等于所要求的值$\alpha_i$，我们要保证下面不等式的成立。
+
+%\begin{equation}\label{emptyproability}
+%\begin{aligned}
+%\hspace{0in} 1-\left[1-\frac{f'}{f}\times\left(1-\frac{1}{f}\right)^{ {n_i}}\right]^{\mathcal X_i\cdot t_i}\geq\alpha_i,
+ %\approx e^{-\frac { {n_{ki}}}{f_{ki}}},
+%\end{aligned}
+%\end{equation}
+
+%为了满足检测精度要求，通过求解上述方程，我们需要计算标签类别$C_i$所需要的最小检测时间帧数目$\mathcal X_i$。
+
+%\begin{equation}\label{X_i}
+%\begin{aligned}
+%\hspace{0in} \mathcal X_i=\frac{\ln\left(1-\alpha_i\right)}{t_i\cdot \ln \left[1-\frac{f'}{f}\times\left(1-\frac{1}{f}\right)^{n_i}\right]},
+%\end{aligned}
+%\end{equation}
+
+%因此，标签类别$C_i$所需要的检测时间$\mathcal T_i$可以计算如下。
+
+%\begin{equation}\label{emptyproability}
+%\begin{aligned}
+%\hspace{0in} \mathcal T_i=\mathcal X_i\times\left(\tau_{ip}+f'\times\tau_{ci}\right)=\frac{\ln\left(1-\alpha_i\right)\times\left(\tau_{ip}+f'\times\tau_{ci}\right)}{t_i\cdot \ln \left[1-\frac{f'}{f}\times\left(1-\frac{1}{f}\right)^{n_i}\right]},
+%\end{aligned}
+%\end{equation}
+
+%然后，我们提出定理1来寻找最优的广播帧大小$f^{op}_i$和最佳执行帧大小$f'^{op}_i$来使类别$C_i$使所需检测时间$T_i$最小化。
+
+%\begin{theorem}
+%\label{Th23ABC}
+%给定已知标签的数量$n_i$，容忍阈值$t_i$, 任意标签类别$C_i$所需检测精度$\alpha_i$，则为使检测时间最短，最优的广播帧长和最佳执行帧长应分别设置为$f^{op}_i=n_i+1$，$f'^{op}_i=\min\{f,512\}$,其中$i\in[1,\lambda]$。
+%\end{theorem}
+
+%\begin{proof}
+%\vspace{-0.05in}
+%\begin{small}
+%我们计算$\mathcal T_i$对于广播帧长$f$的一阶偏导数，如下所示。
+%\begin{equation}\label{optimalfandf}
+%\begin{aligned}
+%\hspace{0in}
+ %  \frac{\partial \mathcal T_i}{\partial f}=\frac{f' \left(1-\frac{1}{f} \right )^{n_i-1}\left(n_i+1-f\right){\ln\left(-\alpha_i\right)\left(\tau_{ip}+f'\times\tau_{ci}\right)}}{t_i f^3 \left[1-\frac{f'}{f}\left(1-\frac{1}{f}\right)^{n_i}\right]\ln^2\left[1-\frac{f'}{f}\left(1-\frac{1}{f} \right )^{n_i}\right]}
+%\end{aligned}
+%\end{equation}
+%观察公式\ref{optimalfandf}，我们发现当$\frac{\partial \mathcal T_i}{\partial f}=0$时，$f=n_i+1$；当$\frac{\partial \mathcal T_i}{\partial f}<0$时，$f<n_i+1$；当$\frac{\partial \mathcal T_i}{\partial f}<0$时，$f<n_i+1$；当$\frac{\partial \mathcal T_i}{\partial f}>0$时，$f>n_i+1$。 因此，我们断言，当广播帧长$f^{op}_i$取值$n_i+1$时，标签类别$C_i$获取丢失标签检测时间最小值。
+
+%接下来，我们计算$\mathcal T_i$对于执行帧$f'$的一阶偏导数如下所示。
+%\begin{equation}\label{1optimalfandf'}
+%\begin{aligned}
+%\hspace{0in}
+%   \frac{\partial \mathcal T_i}{\partial f'}=\frac{\mathcal A \ln\left(1-\alpha_i\right)}{t_i \ln^2\left[1-\frac{f'}{f}\left(1-\frac{1}{f} \right )^{n_i}\right]}
+%\end{aligned}
+%\end{equation}
+%其中$\mathcal{A}=\tau_{ci}{\ln(1-\frac{{f'}}{fe})}+\frac{\tau_{ip}+f'\tau_{ci}}{fe-f'}$。 我们进一步计算$\mathcal{A}$对$f$的一阶偏导数，其计算如下。
+%\begin{equation}\label{2optimalfandf'}
+%\begin{aligned}
+%\hspace{0in}
+%   \frac{\partial \mathcal A}{\partial f}=\frac{-f'^2\cdot\tau_{ci}-fe\tau_{ip}}{\left(fe-f'\right)^2\cdot f}<0
+%\end{aligned}
+%\end{equation}
+%由公式\ref{2optimalfandf'}可知，$\mathcal A$对于$f$是递减函数。当$f$设置为其最优解$n_i$时，我们很容易计算$\lim_{f\rightarrow \infty}{\mathcal A}=0$，由此我们能够知道$\mathcal A$的值总是大于0。 然后，我们可以得到$\frac{\partial \mathcal T_i}{\partial f'}$ 的值小于0，即检测时间$\mathcal T_i$是关于$f'$的递减函数。因此，对于类别$C_i$,我们应该设定执行帧的最优值大小为$\min\{f,512\}$。
+%\end{small}
+%\noindent
+%\end{proof}
+
+%在上文，我们为标签类别$C_i$计算了其最优广播帧长$f^{op}_i$以及最佳执行帧长$f'^{op}_i$。然而，在SMTD协议中，只能存在一对$f$和$f'$，类别$C_i$的最优广播帧长和最优执行帧长并不一定适合所有标签类别，为了寻求公平，我们设置协议中的最优广播帧长为每个类别最优帧长的平均值，最佳执行帧长为每个类别最佳执行帧长的平均值，即最终设置为$f=\frac{\sum_{i\in[1,\lambda]}f^{op}_i}{\lambda}$，$f’ =\frac{\sum_{i\in[1,\lambda]}f‘^{op}_i}{\lambda}$。 利用这样的平均广播帧长与执行帧长重新计算公式\ref{X_i}获取每个类别需要执行的时间帧数目$\mathcal X_i$。 为了保证每个类别丢失标签的检测精度，实际的执行时间帧数量应该设置为$\max_{i\in[1,\lambda]}{\mathcal X_i}$。
+
+
+
+
+
+%第一阶段的主要目的是通过广播多类过滤器对新增标签进行检测，减少新增标签在下一阶段对标签分类过程的干扰。多1,类过滤器是专为动态标签识别问题设计的一种数据结构。其本质是一个记录时隙状态的二进制向量。
+%
+%与MUIP协议\ucite{XuanLiuTPDSUnknownTagIDen}，IIP协议\ucite{li2010identifying} 中使用的0-1 编码的二进制向量不同，多类标签过滤器使用$w$ 位来记录每个时隙的状态。
+%
+%具体来说，在多类标签过滤器中$w$位皆为‘0’来代表空时隙，$w$位皆为‘1’ 来代表空时隙， 其余$2^{w}-2$ 种状态都用来描述单一时隙。图\ref{multi-category-filter-design} 给出了创建多类别分类器的基本思想。其创建过程主要包含两步：
+
+%\begin{enumerate}
+ % \item 假设历史标签集合$\mathcal{S}_i$和标签采用的哈希函数$\mathcal{H}_1(\cdot)$已知，服务器可以依据哈希函数$\mathcal{H}_3(\mathrm{ID},\mathcal{R})\mod f$预测历史标签选取的时隙。在不考虑新增标签和丢失标签的情况下，可以对时隙的状态进行预测。
+ % \item 后端服务器会创建一个向量来记录时隙状态，每个时隙对应$w$位的二进制数据。如果一个时隙是空时隙，则对应的二进制位设置为全`0'，如果一个时隙是冲突时隙，对应的二进制位全部设置为`1'。对于单一时隙，后端服务器会使用时隙内标签的ID，调用另一个哈希函数$\mathcal{H}_2(\mathrm{ID},\mathcal{R})\mod (2^{w}-2)+1$生成一个取值范围在$1\sim2^{w}-2$之间的二进制码作为时隙的状态码。
+%\end{enumerate}
+%为了检测新增标签，阅读器会广播多类标签过滤器，以及构建过滤器用到的必要参数$\mathcal{R}$和$f$。标签会依据同样的哈希函数$\mathcal{H}(\mathrm{ID},\mathcal{R})\mod f$计算其在多类过滤器中对应的时隙。由于所有的历史标签信息都编码在过滤器中，他们肯定映射到非空时隙。当标签映射到空时隙时，它就可以被确认为新增标签。此外，映射到单一时隙的标签，也可能因为状态码和时隙不同，而被确认为新增标签。它们在第三阶段之前不再向阅读器发送数据，这显著降低了新增标签对丢失标签和原有标签检测的干扰。图\ref{unknown-tag-detection-technique} 给出了新增标签检测方法的一个样例，新增标签ID9可以被检测，因为它映射到一个空时隙。虽然，ID10 和ID11同样映射到单一时隙，但是只有ID11可以被检测出来，因为状态码和时隙不一致。ID12映射到冲突时隙，不能被检测出来，需要在下一轮，使用不同的哈希种子进行重新进行映射。
+
+%与现有协议\ucite{li2010identifying,XuanLiuTPDSUnknownTagIDen} 常用的标记向量相比，该技术主要有以下两个优点：
+%\begin{enumerate}
+ % \item 明确区分了空时隙，冲突时隙和单一时隙。空时隙可以用于新增标签的自检和标记，一旦标签发现自己选择的时隙是空时隙，就能确定自己是个新增标签。在预期的单一时隙内，比较容易发现新增标签和丢失标签。相反，在预期的冲突时隙很有可能确实包含冲突，因此很难利用它来识别和标记标签。所以，该技术可以跳过不必要执行的空时隙和冲突时隙，提升识别的效率。
+ % \item 多类标签过滤器可以同时标记到空时隙和单一时隙中的新增标签，而以往的方法只能标记空时隙中的新增标。这主要因为是每个单一时隙的二进制码是根据对应标签ID生成的。当一个新增标签映射到该单一时隙，它很有可能会发现时隙的二进制码，和它自身的二进制码不一致，从而意识到自己是一个新增标签。所以，该技术可以显著提升新增标签的过滤效率。
+%\end{enumerate}
+
+%\%begin{figure}[t]
+  %  \setlength{\abovecaptionskip}{0pt}
+  %  \setlength{\belowcaptionskip}{0pt}
+  %\centering
+ % \includegraphics[width=0.8\textwidth]{fig_unknown_detection_fcs}
+ % \bicaption[unknown-tag-detection-technique]{}{新增标签检测方法}{Fig.}{The technique for unknown tag detection}
+%\end{figure}
+%\subsection{聚类分割}\label{Category clustering}
+%\esubsection{Category clustering}
+%\begin{figure}[t]
+ %   \setlength{\abovecaptionskip}{0pt}
+ %   \setlength{\belowcaptionskip}{0pt}
+ % \centering
+ % \includegraphics[width=0.85\textwidth]{CC}
+%  \bicaption[CC]{}{举例说明聚类分割协议。(a)聚类分割协议的基本思想。(b)类别分组后SMTD协议的检测时间。}{Fig.}{Exemplify the Category Clustering protocol.(a)Basic idea of Category Clustering.(b)Detection time of SMTD+CC $vs.$ number of batches.}
+%\end{figure}
+%不同的标签类别通常有不同的标签数量以及不同的检测精度要求，这样对最优广播帧长度$f^{op}$以及最佳执行帧大小$f'^{op}$会有不同的需求。在同一时间帧中，平均帧大小可能不适合所有$\lambda$个标签类别。因此，武断的执行可能会导致丢失标签检测时间变长。在这个章节中，我们提出了基础 SMTD 协议的补充协议聚类分割(CC)协议。
+
+%\subsection{CC协议设计}\label{CC protocol design}
+%\esubsection{CC protocol design}
+%对于任意标签类别$C_i$，已知标签数量$n_i$，容忍阈值$t_i$，以及所要求的检测精度$\alpha_i$都存储在服务器端。根据定理\ref{Th23ABC}，我们可以计算每个标签类别$C_i$最优的广播帧长$f^{op}$以及最佳的执行帧长$f'^{op}$。在聚类分割(CC)协议中，根据计算的最优帧大小$\{\langle f^{op}_1, f'^{op}_1\rangle,\langle f^{op}_2, f'^{op}_2\rangle,\cdots,\langle f^{op}_\lambda, f'^{op}_\lambda\rangle\}$，运用聚类分割算法，我们把标签类别分成$\aleph$个分组$\mathcal B_1,\mathcal B_2,\cdots，\mathcal B_\aleph$。
+%每个分组$\mathcal B_1$都是标签类别的集合，且它们的最优的帧长大小$f^{op}$和$f'^{op}$相近。因为聚类分割算法不是本文研究的重点，所以此处只是运用了简单的\emph{k-means}算法。如图\ref{CC}所示，一个有$10$个标签类别的RFID系统，已知$10$个类别的标签数量分别为$1500$，$2000$，$3000$，$3500$，$8000$，$9500$，$20000$，$21000$，$22000$和$23000$。$10$ 个标签类别的容忍阈值简单地设置为相同的值$5$，检测精度也同样设置为相同的值$95\%$。我们可以轻易的观察到每个类别最优帧大小都不相同，特别是广播帧大小。使用\emph{k-means} 算法把这些标签类别聚类为$1\leqslant\aleph\leqslant10$ 组。然后按照分组顺序依次执行基础的SMTD 协议。我们可以提前计算每个$\aleph$ 值下SMTD+CC协议检测的时间，$\aleph\in[1,\lambda]$。如图\ref{CC}(b)所示，把$10$个标签类别分为$3$组的情况下，丢失标签的检测效率最高，$3$ 个分组的聚类情况为$\{C_1, C_2, C_3, C_4\}$，$\{C_5, C_6\}$，$\{C_7, C_8, C_9, C_{10}\}$。因此，在这个举例中，我们应当选择的最佳分组数量$\aleph=3$ 去执行SMTD+CC协议，每个分组顺序检测。在一个分组中执行SMTD+CC协议时，分组内的所有类别并行丢失标签检测。从根本上说，SMTD+CC协议是SMTD 协议与其他丢失标签检测协议的权衡协议，SMTD协议盲目的把所有标签类别同时检测，而其他丢失标签检测协议则是每个标签类别完全独立，只能逐个类别的进行检测。当所有类别标签数量相同或者相近时，SMTD+CC与SMTD协议执行时间相同。因此，基本的SMTD协议是SMTD+CC协议的一种特列。
+
+
+
+%第二阶段的主要目的是对丢失标签/新增标签/原有标签进行区分。在协议执行过程中，阅读器通过发送特定的ACK 来标记和静默已识别的标签，从而逐步减少标签间的识别干扰，提升动态标签识别的速度和准确度。该阶段是FCS最核心的阶段。算法\ref{algo:tag_logic_fcs}和\ref{algo:reader_logic_fcs} 分别描述了标签端和阅读器端进行标签分类的过程。在第一阶段广播多类过滤器之后，阅读器会执行改进的Aloha进行标签分类。在改进的Aloha中的时隙数目和多类过滤器中的单一时隙数目相等。为了提高时隙监控的效率，冲突时隙和空时隙都被跳过不予执行。而映射到单一时隙中的标签会根据其在所有单一时隙中的排列序列，重新确定自己对应的时隙。在对应时隙中，每个标签会向阅读器发送一个由自身ID，经过哈希运算$\mathcal{H}_3(\mathrm{ID},\mathcal{R})\mod 2^{d}$ 得到$d$ 位的签名。
+
+
+%\begin{algorithm}[t]
+%\SetAlgoNoLine
+%\DontPrintSemicolon % Some LaTeX compilers require you to use \dontprintsemicolon instead
+%\KwIn{多类标签过滤器$MCF$，帧长$f$，随机种子$\mathcal{R}$}\;
+%\KwOut{将标签标记为丢失、新增或原有}\;
+%\For{标签$s$，$\in\mathcal{S}_{i+1}$}{
+ %根据$\mathcal{H}_1(\mathrm{ID}_s,\mathcal{R})\mod f$选择时隙$f_s$\;
+ %根据$\mathcal{H}_2(\mathrm{ID},\mathcal{R})\mod (2^{w}-2)+1$计算状态码$c_s$\;
+%\uIf{$MCF[f_s]$ = $(0)_2$ 或者 $MCF[f_s]\neq c_S$}{
+  %  $s$标记为新增标签
+%  }
+ % \uElseIf{$MCF[f_s]$ = $(2^{w}-1)_2$}{
+ %   $s$本轮不能被分类，参加下一轮分类
+ % }
+ %% \Else{
+ %   统计$f_s$在单一时隙中的序列，记为$f'_s$\;
+  %  根据$\mathcal{H}_3(\mathrm{ID},\mathcal{R})\mod 2^d$计算签名$sign$\;
+ %   在第$f'_s$个时隙传送$sign$给标签\;
+   % \uIf{接收到$ACK_\mathcal{U}$}{
+          %  $s$标记为新增标签
+   % }
+  %  \uElseIf{接收到$ACK_\mathcal{O}$}{
+          %  $s$标记为原有标签
+  %  }
+  %  \Else{
+  %        $s$本轮不能被分类，参加下一轮分类
+  %  }
+ % }
+%}
+%\caption{标签分类算法}
+%\label{algo:tag_logic_fcs}
+%\end{algorithm}
+
+
+%已知每个隙对应的标签ID，以及用于创建签名的哈希函数$\mathcal{H}_3$，阅读器能够预测在每个时隙中的应该收到的签名。
+%
+%通过比较应收签名和实际观测到的签名，阅读器可以分类标签，并发送特定的ACK标记标签的类别。具体有以下四种情况：
+%\begin{enumerate}
+ % \item 如果实际时隙状态为单一时隙，并且签名正确，该时隙中的标签很有可能是原有标签，阅读器发送$ACK_\mathcal{O}$命令，将标签标记为原有标签。
+ % \item 如果实际时隙状态为单一时隙，但签名错误，该时隙中的标签一定是新增标签，阅读器发送$ACK_\mathcal{U}$命令，将标签标记为原有标签。
+ % \item 如果实际时隙状态为空，该时隙中的标签一定已经丢失，阅读器发送$ACK_\mathcal{M}$命令，将标签标记为丢失标签。
+ % \item 如果实际时隙状态为冲突，该时隙中很有可能包含新增标签和原有标签两种类型，阅读器不能对混合情况进行分类，因此发送$NACK$命令让他们参与下一轮。
+%\end{enumerate}
+
+%当时间帧结束之后，被$NACK$标记的未分类标签，以及因为映射到冲突时隙中而被跳过的标签会重新回到第一阶段，进行下一轮的分类。在新的一轮中，已经识别的原有标签和丢失标签已经从历史标签中排除，使得问题的规模减小。以上过程会不断重复，直到所有$\mathcal{S}_{i}$中的标签都被成功分类。此时系统中仍任存在活跃标签肯定都是新增标签，阅读器会发送一个全为`0'的多类过滤器将它们标记为新增标签。
+
+
+%\begin{algorithm}[t]
+%\SetAlgoNoLine
+%\DontPrintSemicolon % Some LaTeX compilers require you to use \dontprintsemicolon instead
+%\KwIn{未分类的历史标签$\mathcal{S}_i$， 多类标签过滤器MCF，帧长$f$， 随机种子$\mathcal{R}$}\;
+%\KwOut{已经识别的现有标签$\mathcal{O}$和丢失标签$\mathcal{M}$}\;
+%阅读器广播$MCF$， $f$， $r$来检测新增标签\;
+%阅读器统计$MCF$中单一时隙的数目记为$f'$\;
+%阅读器初始化一个包含$f'$个时隙的时间帧与标签进行通讯\;
+%\For{时隙$i$， $i\in[0,f'-1]$}{
+% \uIf{时隙$i$是个单一时隙}{
+%    \If{时隙中监控到的签名与预期标签$s$的签名一致}{
+%        发送$ACK_\mathcal{O}$将时隙中的标签标记为原有标签， $s$加入原有集合$\mathcal{O}$
+%        }
+%        \Else{
+%        发送$ACK_\mathcal{U}$将时隙中的标签标记为新增标签， $s$加入丢失标签集合$\mathcal{M}$
+%        }
+%  }
+%  \uElseIf{时隙$i$是个空时隙}{
+%       $s$加入丢失标签集合$\mathcal{M}$
+%  }
+%  \Else{
+%       不能分类，发送$NACK$，让时隙中的标签参加下一轮分类
+%  }
+%}
+%\caption{阅读器分类算法}
+%\label{algo:reader_logic_fcs}
+%\end{algorithm}
+
+
+%\begin{algorithm}[t]
+%\SetAlgoNoLine
+%\DontPrintSemicolon % Some LaTeX compilers require you to use \dontprintsemicolon instead
+%\KwIn{哈希函数$\mathcal{H}$，随机种子$R$，时隙数$f$}\;
+%\KwOut{新增标签$\mathcal{U}$}\;
+%阅读器广播$f$，$r$来初始化一个时隙与标签进行通讯\;
+%标签根据$\mathcal{H}_1(\mathrm{ID}_s,\mathcal{R})\mod f$选择时隙$f_s$，并在$f_s$时隙回复一个短随机数$rn$\;
+%\For{时隙$i$，$i\in[0,f-1]$}{
+% \If{时隙$i$是个单一时隙}{
+%       $\mathcal{I}[i] = 1$
+%  }
+%  \Else{时隙$i$是个空时隙或冲突时隙}{
+%       $\mathcal{I}[i] = 0$
+%  }
+%}
+%阅读器广播$\mathcal{I}$来通过空时隙和冲突时隙\;
+%\For{活跃标签$s$}{
+% \If{$\mathcal{I}[f_s] = 1$}{
+%       统计$f_s$时隙之前'1'的数目，记为$f'_s$\;
+%       在第$f'_s$时隙向阅读器发送自身ID。
+%  }\Else{
+%       标签$s$本轮映射到冲突时隙，参加下一轮识别
+%  }
+%}
+%\caption{新增标签识别阶段算法}
+%\label{algo:unknwon_identification_fcs}
+%\end{algorithm}
+%\section{MMTD协议设计}\label{multiple readers RFID system}
+%\esubsection{multiple readers RFID system}
+
+%阅读器的阅读范围(即使配备了多个天线)是非常有限的\ucite{jia2019efficient}。因此，对于大范围的监控空间，我们通常需要部署多个具有重叠通信区域的阅读器以无缝覆盖整个标签分布区域。如果两个毗邻的阅读器同时广播探测命令时，阅读器的信号重叠(R2Rc)就会干扰位于重叠区域的标签，使标签不能正确识别阅读器发送的信号指令，从而导致标签认证失败。然而，大部分丢失标签检测协议只是单纯设定RFID系统中只包含一个阅读器，忽略了R2Rc的影响。此外，许多研究工作旨在消除R2Rc\ucite{mbacke2018survey,amadou2015hamac,waldrop2003colorwave}。 在单类别标签的RFID系统中，避免R2Rc 的算法可以有效提升标签的识别性能，但在多类别RFID系统中，由于类别标签分布区域的问题，可能有些阅读器的监控区域没有对应类别的标签，在检测时开启此阅读器，无疑增加能量消耗。因此，为减少能量消耗，避免因R2Rc的产生造成丢失标签检测的假阴性错误（标签没有丢失，由于R2Rc 造成标签识别失败，错误认为标签丢失），检测类别标签分布区域，以及规划阅读器分组成为多阅读器多类别RFID系统中丢失标签检测必须考虑的问题。
+
+%本节进一步提出多阅读多类别丢失标签检测协议(MMTD)对阅读器优化分组消除R2Rc的假阴性影响，并检测每个类别标签的空间分布，差异化阅读器的参数设置，进一步优化丢失标签检测的时间效率。与相关协议相比，MMTD拥有两大优势：(1)MMTD检测类别标签分布区域，并把整个丢失标签检测任务分割成没有R2Rc 的多个轻量级子任务；(2) 根据类别标签的空间分布，个性化设置每个类别所需要的广播帧长和执行帧长。如图\ref{system}所示，假如每个类别标签的分布区域以及阅读器的识别区域已经被获取，为了免除R2Rc 影响，我们利用最简单的贪心算法把所有的阅读器分为红黑两组，阅读器1、阅读器4为一个分组，阅读器2和阅读器3为另一个分组，两个分组依次执行丢失标签检测协议。由此我们可以发现，MMTD既可实现多类别丢失标签的并行检测，又可以避免R2Rc带来了标签认证失败影响。
+%\subsection{问题定义}\label{Problem Definition}
+%\esubsection{Problem Definition}
+
+%多阅读器多类别RFID系统部署$U$个阅读器，使每个标签至少能与一个阅读器通信。标签类别数量$\lambda$，每个类别标签数量$n_i$，$i\in[1,\lambda]$，系统要求的检测概率$\alpha$以及每个类别丢失标签容忍阈值$t_i$与单个阅读器多类别RFID系统丢失标签检测定义相同。在丢失标签检测中，处于单个阅读器监控区域之外的标签都会被该阅读器认定为丢失标签，然而，被单个阅读器认定为丢失标签并不代表此标签真正意义的丢失，而是被$U$个阅读器都认为丢失，此标签才是真正的丢失标签。
+
+%\begin{definition}
+%\label{Definition}
+%(真正的丢失标签)。在多阅读器多类别标签RFID系统中，$U$个具有重叠识别区域的阅读器部署到标签分布区域，$\lambda$个标签类别需要被检测。对于第$i$个标签类别，多轮丢失标签检测以后，每一个阅读器都能获取一个针对自身的丢失标签序列。则真正的丢失标签序列为$S=S_1 \bigcap S_2 \bigcap\dots\bigcap S_j \bigcap S_U$，$S_j$是第$j$个阅读器获取的丢失标签序列。
+%\end{definition}
+%因此，如果丢失标签序列$S$为空集，则表明系统存储的待检测标签全都存在，没有此类别的丢失标签，然而，如果$S$不为空，则表明有此类别的丢失标签，丢失事件被检测到。如图\ref{system}所示，针对第一个标签类别，阅读器1检测到的丢失标签序列为$S_1=\{2,3,4,5\}$，阅读器2获取到的丢失标签序列为$S_2=\{1,3,4,5\}$，同样$S_3=\{1,2,3\}$，$S_4=\{1,2,3,4,5\}$，四个阅读器获取丢失标签序列的交集$S=\{3\}$。因此，在第一个标签类别中，标签3是真正的丢失标签。表格\ref{tab:Notations2}总结了本章节中新增使用的符号用语。
+
+%\begin{table}[t]
+%\bicaption[tab:Notations2]{}{新增符号列表说明}{Tab.}{Newly increased list of notations}
+%\centering
+%\vspace{0.2cm}
+%\dawu
+%\begin{tabular}{ll}
+ %   \hline
+ %   符号 & 说明\\
+ %   \hline
+ %   $U$ & 多阅读器RFID系统中阅读器数量\\
+  %  $M_i$ & 标签类别$C_i$中实际丢失标签的数量\\
+  %  $S_i$ & 最终获取的标签类别$C_i$的丢失标签集合\\
+  %  $\mathcal X_{ri}$ & 对于标签类别$C_i$，阅读器$R_r$需要执行协议的轮数\\
+  %  $f_{ri}$ & 阅读器$R_r$和标签类别$C_i$下的广播帧长\\
+%    $f'_{ri}$ & 阅读器$R_r$和标签类别$C_i$下的执行帧长\\
+%    $f_{ri}^{op}$ & 阅读器$R_r$和标签类别$C_i$下的最优广播帧长设置\\
+ %   ${f'}_{ri}^{op}$ & 阅读器$R_r$ 和标签类别$C_i$下的最优执行帧长设置\\
+  %  $\mathcal{T}_{ri}$ &  标签类别${C}_i$所需要的检测时间\\
+  %  \hline
+%\end{tabular}
+%\end{table}
+
+%\begin{figure}[t]
+%    \setlength{\abovecaptionskip}{0pt}
+%    \setlength{\belowcaptionskip}{0pt}
+%  \centering
+%  \includegraphics[width=0.8\textwidth]{Accuracy}
+%  \bicaption[continuous-scanning-problem]{}{多阅读器RFID系统模型}{Fig.}{Multi-reader RFID system model}
+%\end{figure}
+%
+%
+%\begin{figure}[t]
+%    \setlength{\abovecaptionskip}{0pt}
+%    \setlength{\belowcaptionskip}{0pt}
+%  \centering
+%  \includegraphics[width=0.8\textwidth]{Numreaders}
+%  \bicaption[continuous-scanning-problem]{}{多阅读器RFID系统模型}{Fig.}{Multi-reader RFID system model}
+%\end{figure}
+%
+%
+%\begin{figure}[t]
+%    \setlength{\abovecaptionskip}{0pt}
+%    \setlength{\belowcaptionskip}{0pt}
+%  \centering
+%  \includegraphics[width=0.8\textwidth]{sigma}
+%  \bicaption[continuous-scanning-problem]{}{多阅读器RFID系统模型}{Fig.}{Multi-reader RFID system model}
+%\end{figure}
+
+
+%\begin{figure}[t]
+%    \setlength{\abovecaptionskip}{0pt}
+%    \setlength{\belowcaptionskip}{0pt}
+%  \centering
+%  \includegraphics[width=0.8\textwidth]{Threshold}
+%  \bicaption[continuous-scanning-problem]{}{多阅读器RFID系统模型}{Fig.}{Multi-reader RFID system model}
+%\end{figure}
+%
+%
+%\begin{figure}[t]
+%    \setlength{\abovecaptionskip}{0pt}
+%    \setlength{\belowcaptionskip}{0pt}
+%  \centering
+%  \includegraphics[width=0.8\textwidth]{u}
+%  \bicaption[continuous-scanning-problem]{}{多阅读器RFID系统模型}{Fig.}{Multi-reader RFID system model}
+%\end{figure}
+%
+%
+%\begin{figure}[t]
+%    \setlength{\abovecaptionskip}{0pt}
+%    \setlength{\belowcaptionskip}{0pt}
+%  \centering
+%  \includegraphics[width=0.8\textwidth]{DePro}
+%  \bicaption[continuous-scanning-problem]{}{多阅读器RFID系统模型}{Fig.}{Multi-reader RFID system model}
+%\end{figure}
+
+\section{协议性能评估}\label{PerformanceEvaluation MMTD}
+\esection{Performance Evaluation}
+\begin{figure}[t]
+    \setlength{\abovecaptionskip}{0pt}
+    \setlength{\belowcaptionskip}{0pt}
+  \centering
+  \includegraphics[width=0.45\textwidth]{RRC}
+  \bicaption[RRC]{}{多阅读器RFID系统模型}{Fig.}{Multi-reader RFID system model}
+\end{figure}
+本小节从两个方面评估MMTD协议的执行性能：检测精度和时间效率。为了展示MMTD在丢失标签检测的卓越性能，我们引入多个对比协议。对比协议包括TRP\ucite{tan2010efficient}，RUN\ucite{shahzad2015expecting}，SSDA, ESSDA\ucite{chen2017probabilistic}，EMD\ucite{luo2011efficient}，SMTD，SMTD+CC\ucite{liu2018fast}。对比协议和MMTD均是基于帧时隙Aloha协议设计。TRP利用传统Aloha协议中预测忙时隙转变为实际空时隙检测是否有丢失标签；RUN针对有未知标签出现的RFID系统中的丢失标签检测问题，未知标签的出现是降低丢失标签检测效率的关键因素；SSDA和ESSDA同样利用传统Aloha协议的概率检测算法，但时隙利用率低仍然是协议执行性能的瓶颈，在本次对比实验中，未知标签的数量设置为$0$消除未知标签影响；EMD利用采样的方式每个时间帧只允许少部分标签参与检测，符合标签唤醒条件而未发送响应信息的标签则被认定为丢失标签，采样的方式提高了检测效率，但其对多类别RFID系统仍然只能采用逐类检测的低效方式；SMTD和SMTD+CC能够对多类别标签的RFID系统实行并行丢失标签检测，虽然大幅度提升检测效率，但对于多阅读器RFID系统，所有阅读器采用统一参数设置的方式制约了丢失标签检测效率的提升。
+
+\subsection{实验设置}
+\esubsection{Simulation Settings}
+本节在戴尔Inspiron 15-7572（配置Intel i7处理器和16G DDR4内存）上用matlab仿真实现了MMTD协议的执行过程，与现有协议的对比试验在同样的环境配置下完成。根据RFID的EPC C1G2\ucite{epcc1g2}标准，上行链路（标签到阅读器）信号传输速率为53~Kb/s，下行链路（阅读器到标签）信号传输速率为26.5~Kb/s。即标签发送1~bit到阅读器需要的时间为$18.8~us$，阅读器发送1~bit的数据到标签所用的时间为$37.7~us$。 任意两个连续数据传输的间隔时间$\tau_w$为$302~us$ \ucite{shahzad2014fast}。每个时隙的时间消耗由两部分组成，等待时间和数据传输时间。即标签发送一个类别ID所需要的时间为$\tau_{ci}=\tau_w+\lambda\times 18.8~us$，阅读器发送问询命令所需要的时间为$\tau_{ip}=\tau_w+16\times 37.7~us$。
+
+MMTD针对有空间限制、静态标签的RFID系统设计。本节为了直观展示实验环境和公平的进行对比实验特建立一个综合的RFID系统，如图~\ref{RRC}所示，一个$60m\times60m$的监控区域内部署20个阅读器。根据阅读器调度协议Colorwave\ucite{waldrop2003colorwave} （贪心算法），阅读器可以分为青、红、黑3组，被标记为青色的阅读器坐标分别为$(46.8,55.8),(1.2,43.2),(25.2,34.8),(53.4,36.0),(9.0,6.6),(38.4,5.4)$，它们的通信半径为$9.0 m,12.0 m,15.6m,11.4 m,12.0 m,10.8 m$；被标记为红色的阅读器坐标分别为$(1.8,58.2),(35.4,53.4),(57.6,52.8),(16.2,46.2),(10.2,28.2),(41.4,19.8),(17.4,11.4),(58.2,\\4.2)$，它们的通信半径分别为$9.0 m,9.0 m,9.0 m,10.2 m,7.8 m,13.2 m,9.6 m,8.4 m$；被标记为黑色的阅读器坐标分别为$(18.0,57.0),(46.2,42.0),(4.8,22.2),(55.2,22.2),(27.6,7.8),(49.2,\\5.4)$，它们的通信半径分别为$4.4 m,12.0 m,12.0 m,12.0 m,12.0 m,12.0 m$。
+
+丢失标签检测任务的时间为系统发送第一个$\texttt{Query}$命令时，检测计时开始，最后一个阅读器检测结束时，检测计时结束。假设监控区域有$10$个标签类别，其默认的标签数量分别为$1500,2000,3000,3500,8000,9500,20000,21000,22000,23000$。 所有的标签随机分布在监控区域内，且每个标签至少能与一个阅读器通信。每个标签类别中默认的丢失标签数量$M_i$为$10$。RFID系统能够容忍的丢失标签阈值$t_i$设置为$10$。每个标签类别丢失标签的检测精度要求$\alpha_i$设置为$0.95$，即一旦丢失标签数量突破阈值$t_i$，则MMTD发现系统存在丢失标签的概率为$0.95$。
+
+我们假设信息传输过程中不会因为外界干扰而产生错误。为了更好的评估协议性能，我们使用不同的参数组合来测试丢失标签检测协议的时间效率。每个对比实验执行100次，并选用测试结果的平均值作为最终结果。
+
+%我们使用不同的参数组合测试了协议在不同设置下的时间效率。为了比较，在每个参数设置下，我们执行了100次独立的仿真，并使用平均的执行时间作为实验结果。由于CU和ACOS只能对新增标签进行识别，为了公平起见，我们将联合使用一个现有最佳的IIP协议对丢失标签进行识别，从而实现与CA以及FCS相同的识别效果。另外，在以上四个比较的协议中，只有CA是确定性协议，能够保证精准的动态标签识别。其他三个协议都是概率性，会受到随机碰撞的影响，为了公平起见，将三个概率性协议的识别准确度要求设定为$99.9\%$。
+
+
+ %仿真所使用的参数如表\ref{tab:fcs_parameters}所示。根据C1G2规范\ucite{epcc1g2} 进行设置，阅读器到标签的传输速率为26.5~Kb/s，标签到阅读器的传输速率设置为53~Kb/s，两次连续传输时间的等待时间设置$T_{wait}=302~\mathrm{us}$。每个时隙的时间开销由等待时间和数据传输时间两部分组成。因此，阅读器广播96 位的ID 时隙的时间开销可以表示为$r_{ID}=302~\mathrm{us} + 96\times 37.7~\mathrm{us} =3.92~\mathrm{ms}$; 标签回复96 位ID 的时间开销可以表示为$t_{ID}=302~\mathrm{us} + 96\times 18.8~\mathrm{us}=2.10~\mathrm{ms}$；标签回复签名的代价可以表示为$t_{sign}=302~\mathrm{us} + 10\times 18.8~\mathrm{us}=0.48~\mathrm{ms}$。
+%\begin{table}[htbp]
+%	\centering
+  %  \bicaption[tab:fcs_parameters]{}{仿真参数设置}{Tab.}{The simulation setting}
+	%\begin{tabular}{cccc}
+	%	\toprule
+	%	参数 & 取值 & 参数 & 取值 \\
+	%	\midrule
+	%%	Reader-to-tag rate & 26.5~Kbps &  $t_r$ & $37.7~\mathrm{us}$\\
+	%	EPC ID& 96 bits &  $r_{ID}$ & $3.92~\mathrm{ms}$\\
+	%	$d$ & 10 bits &  $t_{sign}$ & $0.48~\mathrm{ms}$\\
+%		$w$ & 2 bits & $t_{wait}$ & $302~\mathrm{us}$\\
+%     %   $f$ & 依照公式\ref{c2_optimal_frame}设置 & $t_{ID}$ & $2.1~\mathrm{ms}$\\
+%		\bottomrule
+%	\end{tabular}
+%\end{table}
+
+%我们主要和以下四种协议进行比较
+%%
+%\begin{itemize}
+%		\item \textbf{Collect All (CA)}:
+%		      最基础的解决方案，即使用基本的标签冲突避免协议，识别所有的标签。根据现有和历史标签集合的差集可以识别新增和丢失标签。
+%		\item \textbf{Collect Unknown (CU)\ucite{ContinuousScanning2010}+Iterative ID-free Protocol（IIP）}:
+%              阅读器首先标记所有的新增标签，然后利用基本的标签冲突避免协对新增标签进行识别。
+%        \item \textbf{Adaptive Continuous Scanning scheme (ACOS)\ucite{Liu2014b}}:
+%              阅读器首先对标签的变化情况进行估计，然而在CA和CU中选择一个较优的策略来进行识别。
+%		
+%\end{itemize}
+%
+
+
+
+%\begin{figure}
+%	\centering
+%	\begin{minipage}[t]{0.49\textwidth}
+%		\centering
+%		\includegraphics[width=1\textwidth]{/fcs/fig_w_fcs}
+%		\bicaption[fig:wtime_fcs]{}{$w$对分类时间的影响}{Fig.}{Impact on classification time}
+%	\end{minipage}
+%	\begin{minipage}[t]{0.49\textwidth}
+%		\centering
+%		\includegraphics[width=1\textwidth]{/fcs/fig_wfalse_fcs}
+%        \bicaption[fig:wfalse_fcs]{}{$w$对分类精确度的影响}{Fig.}{Impact on classification accuracy}
+%	\end{minipage}
+%\end{figure}
+
+\subsection{检测精度}
+\esubsection{Detection Accuracy}
+\begin{figure}[t]
+    \setlength{\abovecaptionskip}{0pt}
+    \setlength{\belowcaptionskip}{0pt}
+  \centering
+  \includegraphics[width=0.6\textwidth]{AccuracyMMTD}
+  \bicaption[AccuracyMMTD]{}{MMTD 的实际检测精度}{Fig.}{Investigating the actual detection probability of our MMTD protocol}
+\end{figure}
+评判丢失标签检测性能的第一个标准就是检测精度。此时标签类别数量，各个类别标签数量，丢失标签检测的容忍阈值，各个标签类别要求的检测精度为默认设置。在检测精度检验时，我们分别设置实际丢失标签数量为$8$到$12$，间隔为$1$。从图~\ref{AccuracyMMTD}我们有两点发现：
+\begin{asparaenum}
+\item 当每个标签类别中丢失标签数量小于容忍阈值$10$时，有些类别的实际检测概率低于所需的检测精度$0.95$。例如，当丢失标签数量为$8$，标签类别${C_1,C_2,C_3,C_5,C_6,C_7,C_8,C_9}$的丢失标签检测概率高于95\%，而标签类别${C_4,C_10}$的检测概率低于95\%；
+\item 当丢失标签数量大于或等于容忍阈值$10$时，所有的标签类别实际的丢失标签检测概率均高于类别要求的概率95\%。
+\end{asparaenum}
+通过以上分析我们可以断定当实际丢失标签数量低于容忍阈值$t_i$时，我们不能保证实际的检测精度一定满足类别需要，当实际的丢失标签数量等于或大于容忍阈值$t_i$时，我们发现所有标签类别的检测精度都高于预定的检测精度。这意味着我们提出的MMTD协议可以满足每个类别的丢失标签检测精度要求。
+
+
+%
+%首先，我们研究了参数$w$对FCS时间考虑和错误分类率的影响。在这组仿真中，我们设置现有标签数目$|\mathcal{S}_{i+1}|=5,000$，原有标签数目$|\mathcal{O}|=1,500$。Fig. \ref{fig:wtime_fcs}显示了当$w$取值不同时，FCS协议分类阶段的时间开销随历史标签数目$|\mathcal{S}_{i}|$ 增长的变化规律。我们发现当$w=2$ 时，FCS 协议有着最小的时间开销。例如历史标签数目$|\mathcal{S}_{i}|=6,000$ 时，$w=2$ 的分类时间大约为4.5秒而$w=5$时的分类时间大约为6.4秒，前者与后者相比，时间效率提升了约30\%。这是因为$w$越大，广播多类过滤器MCF的开销显著增加，但被成功分类的标签数目变化不大。因此，单个标签的分类开销增加，FCS协议的执行时间增多。此外，随着历史标签数目$|\mathcal{S}_i|$ 的增长， 标签分类的开销同样显著增加。例如$w=2,|\mathcal{S}_{i}|=8,000$参数下的执行时间大约是$w=2,|\mathcal{S}_{i}|=4,000$参数下执行时间的两倍。这是因为阅读器需要花费更多的时隙对大量的历史标签进行分类。
+
+
+%在另一方面，随着$w$的增长，标签分类的准确率有一定的提升。在接下来的仿真中，我们将标签数目设置为$|\mathcal{S}_{i+1}|=|\mathcal{S}_{i}|=5,000, |\mathcal{O}|=1,500$。图\ref{fig:wfalse_fcs}展示了当$w$从2 增长到5时，在100轮独立仿真实验中错误分类的标签总数目的变化规律。我们可以发现错误分类的标签随着$w$的增长，显著减少。例如，当$w=2$时，平均每轮中大约有6 个标签被错误分类（约占丢失标签和新增标签总数的0.02\%）。而当$w=5$时，平均每轮中大约有0.6个标签被错误分类（约占丢失标签和新增标签总数的0.002\%），错误分类概率只有$w=2$时的$1/10$。 这是因为，更大的$w$导致更多的新增标签可以被过滤，减少了新增标签和丢失标签发生碰撞的概率。
+%
+%总而言之，参数$w$会带来时间开销和分类准确度的权衡。考虑到$w=2$也能提供足够高的分类准确度（0.2\%的错误概率），在大多数日常应用中我们将FCS 的参数设置为$w=2$来减少时间开销。在有高准确度监控需求的应用场景中，如珠宝等贵重物品监控应用，我们选用更大的$w$，从而牺牲时间效率来提升分类的准确度。
+
+%\begin{figure}
+%	\centering
+%	\begin{minipage}[t]{0.49\textwidth}
+%		\centering
+%		\includegraphics[width=1\textwidth]{/fcs/fig_ufalse_fcs}
+%		\bicaption[fig:ufalse_fcs]{}{$|\mathcal{U}|$ 对分类错误率的影响}{Fig.}{Impact of $|\mathcal{U}|$ on error rate}
+%	\end{minipage}
+%	\begin{minipage}[t]{0.49\textwidth}
+%		\centering
+%		\includegraphics[width=1\textwidth]{/fcs/fig_mfalse_fcs}
+%        \bicaption[fig:mfalse_fcs]{}{$|\mathcal{M}|$ 对分类错误率的影响}{Fig.}{Impact of $|\mathcal{U}|$ on error rate}
+%	\end{minipage}
+%\end{figure}
+
+
+%\subsection{新增/丢失标签数量对分类准确度的影响}
+%\esubsection{Impact of $|\mathcal{U}|$/$|\mathcal{M}|$ on Classification Accuracy}
+%为了衡量丢失标签数目/新增标签数目的不同组合对分类准确度的影响， 我们首先固定丢失标签的数量$|\mathcal{M}|=5,000$和现有标签数量$|\mathcal{S}_{i+1}|=5,000$，并从$5,000$到$10,000$变化新增标签数量$|\mathcal{U}|$来进行实验。
+%%
+%图\ref{fig:ufalse_fcs}表明，新增标签分类的错误率，随着$|\mathcal{U}|$的增长而下降。这是因为$f$随着$|\mathcal{U}|$的增长而增长，与此同时，丢失标签的数量保持不变，受到丢失标签干扰的新增标签比例相对减少，导致其识别准确度的提升。
+%%
+%另一方面，丢失标签分类的错误率，随着$|\mathcal{U}|$的增长而增长，这是因为新增标签的增多，会导致丢失标签更容易被其遮挡，从而导产生更多的分类错误。
+%
+%
+%接下来，我们固定新增标签数量$|\mathcal{U}|=5000$和现有标签数量$|\mathcal{S}_{i+1}|=5,000$，并从$5,000$到$10,000$变化丢失标签数量$|\mathcal{M}|$ 来进行实验。在这组实验中，我们发现新增标签分类的错误率，随着$|\mathcal{M}|$的增长而显著增加。因为当$|\mathcal{M}|$ 较大时，新增标签和丢失标签之间的冲突较为严重，导致更多的新增标签和丢失标签没有被检查到。与此同时，虽然被错误分类的丢失标签数目增多，但是由于定时标签总数的增加，错误分类的丢失标签所占的比例并没有明显的变化。
+%
+%
+%总而言之，新增标签/丢失标签的增加，都会导致被错误分类的标签数目的增加，但是错误率相对较低，基本符合预期，能满足大多数应用的需要。
+
+\subsection{时间效率对比}
+检验协议性能除了检测精度外，第二个重要的性能指标就是时间效率。过长的时间延迟会造成实时性差，阻塞其他协议运行，效率低等不良影响。在RFID 系统中的多种参数对协议运行的时间效率造成影响，包括标签类别数量，每个类别标签数量，丢失标签容忍阈值，预定检测精度，以及阅读器数量。因此，我们也像其他丢失标签检测协议一样，在此部分考察这些影响因子改变时对时间效率的影响。在对比实验中，没有特别强调，参数均采用默认设置。默认的容忍阈值为$10$，当标签类别数量，以及每个标签类别数量改变时，每个标签类别数量遵循正态分布$Norm(\mu,\sigma)$，$\mu=10000$，$\sigma=5000$。
+\esubsection{Time Efficiency Comparison}
+
+\textbf{1. 阅读器数量对时间效率的影响}
+\begin{figure}[t]
+    \setlength{\abovecaptionskip}{0 pt}
+    \setlength{\belowcaptionskip}{0pt}
+  \centering
+  \includegraphics[width=0.4\textwidth]{MMTDNumreaders}
+  \bicaption[MMTDNumreaders]{}{MMTD协议中阅读器数量对检测效率的影响}{Fig.}{The impact of the number of readers in MMTD detection}
+\end{figure}
+
+为了避免R2Rc产生的标签认证失败导致的丢失标签检测结果假阳性的影响，MMTD采用贪心算法对阅读器调度分组，每个分组内没有R2Rc的出现，因此，阅读器的数量和分布情况直接影响MMTD协议的检测性能。如图~\ref{MMTDNumreaders}所示，在监控范围和已知标签数量一定的情况下，阅读器的数量从$20$增加到$40$，每次增加两个阅读器。为了实验的公平性，对比实验同样采用了阅读器的调度算法避免R2Rc影响。从仿真结果我们有三个发现：
+\begin{asparaenum}
+\item 阅读器数量增加明显降低了对比实验的丢失标签检测效率，阅读器越多检测效率越低，这是因为增加阅读器的数量会导致阅读器调度分组增多，而除MMTD之外的对比实验均采用统一的参数设置，过大的时间帧导致每个阅读器都不能实现丢失标签检测效率最大化，降低的检测效率带来更大的时间延迟；
+\item 阅读器数量增加没有明显降低MMTD的检测效率，因为MMTD采用动态时间帧设定方法，虽然阅读器数量增加带来阅读器调度分组增多，但每个阅读器分担的任务量减小使对应的时间帧减小，时间帧减小带来的效率提升抵消了阅读器调度分组增多带来的时间消耗增加；
+    \item MMTD的协议执行性能明显优于其他对比协议，例如当阅读器数量为$40$时，MMTD的检测时间为$17.9s$，而SMTD+CC的检测时长为$52.9s$，ESSDA的检测时间为$108.6s$，MMTD的执行效率是SMTD+CC的$2.9$倍，是ESSDA执行效率的$6$倍。
+\end{asparaenum}
+
+
+\textbf{2. 标签类别数量$\lambda$对时间效率的影响}
+\begin{figure}[t]
+    \setlength{\abovecaptionskip}{0 pt}
+    \setlength{\belowcaptionskip}{0pt}
+  \centering
+  \includegraphics[width=0.5\textwidth]{MMTDNumCate}
+  \bicaption[MMTDNumCate]{}{类别数量对MMTD的检测效率的影响}{Fig.}{The impact of the number of categories in MMTD detection}
+\end{figure}
+
+当标签类别数量改变时，每个类别的标签数量遵循正态分布函数$Norm(\mu,\sigma)$，$\mu=10000$，$\sigma=5000$。在此对比实验中，我们设置$\lambda$的数值从$10$到$20$，每次间隔为$1$。所有协议的执行时间为从阅读器发送第一个\texttt{Query}命令开始到所有阅读器完成丢失标签检测截止。从图~\ref{MMTDNumCate}中我们有三个发现：
+
+%\textbf{统一参数条件下}：我们设置$\lambda$的数值从$10$到$20$。从图\ref{SMTDNumberCate}来看，我们有三个发现：(1)SMTD和SMTD+CC是对比协议中效率最高的两个。例如，当标签类别的数量为$20$，TRP、EMD、RUN、SSDA和ESSDA完成丢失标签检测的时间消耗为$50.1s$、$47.7s$、$47.6s$、$50.3s$ 和$36.4s$。而SMTD和SMTD+CC的时间消耗为$16.4s$，$13.2s$。也就意味着SMTD+CC的效率是RUN的3.6倍。(2)EMD 协议采用了采样的方法允许一小部分标签参与检测，工作过程与TRP协议类似，但此协议对丢失标签容忍阈值要求宽松，即当容忍阈值比较大时才能取得更高的执行效率，因此，EMD不必TRP有更多的优点。新型的RUN 协议旨在解决RFID系统出现未知标签时，丢失标签的检测。本文不考虑丢失标签存在的情况。因此，RUN协议等同于EMD协议，它们均采用采样方式或类似采样的方法。(3)当标签类别数量增加时，SMTD+CC协议执行性能优于SMTD协议，潜在的原因是标签类别越多，类别之间差异越大，SMTD+CC 协议的类别聚类可以更好地优化广播帧长。(4)所有协议的时间消耗都随类别数量的增多而增大，但是SMTD 与SMTD+CC增长的幅度最小。
+\begin{asparaenum}
+\item 在同样采用消除R2Rc影响对阅读器采用调度分组的前提下，MMTD采用阅读器参数差异化设置的方式明显优于其他对比协议采用统一参数设置的方法，例如当当标签类别数量为$10$时，MMTD的检测时间为$13.5s$，SMTD+CC的检测时间为$32.2s$，ESSDA的检测时间为$65.0s$，MMTD的检测效率是ESSDA检测效率的$4.8$ 倍；
+\item 随着标签类别数量增多，待检测的标签数量也随之增多，标签数量的增多增大了丢失标签检测难度，MMTD和其他对比协议的时间延迟也随之增大；
+    \item 标签类别增多对MMTD协议造成的时间延迟明显小于其他对比协议，因为MMTD中标签类别数量增多带来的标签数量增加被多个阅读器分摊，繁重的检测任务被分割成多个轻量级检测任务，且MMTD时间帧的大小是动态改变的。
+\end{asparaenum}
+
+\textbf{3. 期望值$\mu$对时间效率的影响}
+\begin{figure}[t]
+    \setlength{\abovecaptionskip}{0 pt}
+    \setlength{\belowcaptionskip}{0pt}
+  \centering
+  \includegraphics[width=0.5\textwidth]{MMTDU}
+  \bicaption[MMTDU]{}{MMTD设置每个标签类别数量的平均值$\mu$从10000到20000}{Fig.}{MMTD varies average
+tag population size in each category $\mu$ from 10000 to 20000}
+\end{figure}
+\begin{figure}[t]
+    \setlength{\abovecaptionskip}{0 pt}
+    \setlength{\belowcaptionskip}{0pt}
+  \centering
+  \includegraphics[width=0.5\textwidth]{MMTDSigma}
+  \bicaption[MMTDSigma]{}{MMTD设置标签数量的标准差$\sigma$从5000到10000}{Fig.}{MMTD varies $\sigma$ from 5000 to 10000}
+\end{figure}
+
+如前所述，每个标签类别的数量均服从正态分布$Norm(\mu,\sigma)$。在这里，$\mu$反映了每个标签类别数量平均的大小。在仿真实验中，我们设置$\mu$的值从$10000$到$20000$，每次改变增加$1000$。$\sigma$的值仍为默认的$5000$，其他改变丢失标签检测效率的因子均为默认值。随着$\mu$值得增加，标签的总体数量是递增的。从图~\ref{MMTDU}可知：
+\begin{asparaenum}
+\item 随着$\mu$的增加，丢失标签检测的任务量增加，MMTD和其他对比协议的时间消耗均增加，但MMTD的增幅明显小于其他协议的时间消耗增幅；例如当$\mu$从$10000$到$20000$，MMTD时间消耗的增幅为$7.3s$，而ESSDA的增幅为$64.4s$，SMTD+CC的时间延迟增幅为$14.6s$，ESSDA的时间消耗增幅是MMTD的$8.8$倍，SMTD+CC的时间消耗增幅是MMTD的$2$倍；
+\item 在对比协议中，MMTD协议具有最高的时间效率，例如当$\mu$的数据为$20000$，SMTD+CC的执行时间为$47.4s$，而MMTD协议的执行时间只有$27.0s$，MMTD的协议执行效率是SMTD+CC的$1.7$倍；
+\item SMTD和SMTD+CC的检测时间非常接近，因为标签类别体量大小的差异不是特别显著，类别聚类(CC)协议不能给基本的SMTD协议带来额外的检测效率；
+\end{asparaenum}
+%\textbf{统一参数条件下}：
+%我们从图\ref{SMTDU}的仿真结果可以看出，(1)随着$\mu$的变化，我们的两个协议在时间效率方面比其他检测协议执行效率更高。例如，当$\mu=20000$，TRP、EMD、RUN的执行时间分别为$48.2s$，$45.8s$，$45.8$。而我们的SMTD协议和SMTD+CC协议对应的检测时间分别为$12.5s$和$12.4s$。 (2)SMTD和SMTD+CC的检测时间非常接近，因为标签类别体量大小的差异不是特别显著，类别聚类(CC)协议不能给基本的SMTD协议带来额外的检测效率。(3) 随着每个类别中的平均标签数量的增加，每个协议的检测时间都会增加，但是我们的两种检测协议的增量仍然是最小的。
+
+\textbf{4. 标准差$\sigma$对时间效率的影响}
+
+
+$\sigma$的值同$\mu$一样影响着每个类别标签的数量。$\sigma$的值越大表示标签类别数量波动越大。在这组仿真中，我们改变各类别标签类别数量的标准差$\sigma$从$5000$到$10000$，每次增加$500$。随着函数标准差$\sigma$的增大，标签数量的振动幅度单调递增。从图~\ref{MMTDSigma}可知：
+\begin{asparaenum}
+\item 改变$\sigma$值时，MMTD协议在对比协议中性能最好，例如，当$\sigma$为10000 时，SMTD+CC的执行时间为$50.4s$，而MMTD仅为$28.4s$。这意味着MMTD的执行速率是SMTD+CC的1.7倍；
+\item 随着$\sigma$的增大，MMTD协议的性能明显优于其他对比协议。原因是MMTD中各阅读器的广播帧大小远小于SMTD+CC和其他对比协议，且MMTD的检测时间与广播帧大小并非线性递增关系。
+\item当$\sigma$值增大，各个类别标签数量波动性增强，SMTD+CC与MMTD的协议消耗时间增加的稳定性更强，其根本原因是$\sigma$ 值越大意味着越多不同类别的标签数量分布不平衡，不同的类别往往需要更多不同的最优广播帧长度。这时，聚类分割(CC) 协议就可以帮助解决这个问题。因此，SMTD+CC和MMTD协议会优于其他的协议。
+\end{asparaenum}
+
+\textbf{5. 容忍阈值$t_i$对时间效率的影响}
+\begin{figure}[t]
+    \setlength{\abovecaptionskip}{0 pt}
+    \setlength{\belowcaptionskip}{0pt}
+  \centering
+  \includegraphics[width=0.5\textwidth]{MMTDThreshold}
+  \bicaption[MMTDThreshold]{}{MMTD设置容忍阈值$t_i$从10到20}{Fig.}{MMTD sets tolerance threshold $t_i$ from 10 to 20}
+\end{figure}
+
+容忍阈值$t_i$的大小直接决定丢失标签检测效率的高低，$t_i$越小对检测精度的要求越高，消耗的时间更长。为了突出MMTD的卓越性能，在这组仿真中，我们改变每个类别的容忍阈值$t_i$ 从$10$到$20$，每次增加的值为$1$。实际丢失的标签$M_i=t_i$。从图~\ref{MMTDThreshold}可知：
+\begin{asparaenum}
+\item MMTD是对比协议中执行性能最好的，例如，当$t_i = 10$ 时，SMTD+CC的执行时间为$50.3s$，而MMTD只有$30.2s$，这意味着MMTD的执行速率是SMTD+CC的1.75倍；
+\item当$t_i$的值越大，各协议的检测时间趋向于变小，因为$t_i$越大意味着更宽松的检测精度要求；
+\item随着$t_i$的增加，TRP、EMD、RUN和SMTD+CC的时间消耗呈下降趋势，但在MMTD 上这种趋势不明显，原因是除ESSDA协议外的其他所有协议的执行时间都与容忍阈值$t_i$成反比，但从公式~\ref{MinTime}可知，MMTD协议的执行时间只受到轻微影响；
+\item ESSDA的执行性能受$t_i$值变化的影响很小，因为ESSDA采用标签遍历的方式检测丢失标签的存在。
+\end{asparaenum}
+%\textbf{统一参数条件下}：仿真结果如图\ref{SMTDT}，我们可以获取三个结论。首先，我们的SMTD和SMTD+CC协议在时间效率方面比先前协议更高。例如，当$t_i=20$时，TRP、EMD和RUN的检测时间分别是$18.4s$，$13.8s$和$13.7s$。而SMTD和SMTD+CC则只有$6.5s$和$5.7s$。这意味着SMTD+CC协议的时间效率是RUN协议的$2.4$倍。其次，当$t_i$的值越大，各协议的检测时间趋向于变小，因为$t_i$越大意味着更宽松的检测精度要求。最后，随着$t_i$ 值增加，EMD和RUN均优于TRP，原因是使用较大的容忍阈值$t_i$时，EMD和RUN中的采样或类似采样的操作将会有助于提高工作效率。因此,EMD和RUN显示了它们相对于TRP协议的优势。
+
+
+\textbf{6. 预设检测精度$\alpha_i$对时间效率的影响}
+\begin{figure}[t]
+    \setlength{\abovecaptionskip}{0 pt}
+    \setlength{\belowcaptionskip}{0pt}
+  \centering
+  \includegraphics[width=0.5\textwidth]{MMTDDePro}
+  \bicaption[MMTDDePro]{}{MMTD设置检测精度$\alpha_i$从0.90到0.99}{Fig.}{MMTD sets detection probability $\alpha_i$ from 0.90 to 0.99}
+\end{figure}
+
+检测精度$\alpha_i$的设置同样直接影响协议丢失标签检测效率，$\alpha_i$的值越高意味着RFID系统对丢失标签检测有更高、更严格的要求，需要更多的时间帧数量才能满足$\alpha_i$的设定。在此仿真实验中，我们改变各类标签所需检测概率$\alpha_i$从$0.9$到$0.99$，每次增加的值为$0.01$。从图~\ref{MMTDDePro}可知：
+
+%\textbf{统一参数条件下}：我们从仿真结果图\ref{SMTDDTP}中得到三个主要观点，(1)当$\alpha_i$不同时，SMTD和SMTD+CC协议执行性能好于其他对比协议。例如，当$\alpha_i$=0.99时，TRP、EMD和RUN 的检测时间均为$36.5s$，SMTD、SMTD+CC的检测时间只有$19.6s$、$17.0s$。SMTD+CC 检测速率是现有协议的$2.1$倍。(2)随着$\alpha_i$值的增大，TRP、EMD和RUN 的检测时间趋于相同。其根本原因是$\alpha_i$的值越大意味着对检测精度有更严格的要求，会削弱抽样或抽样样的积极作用。因此，他们的表现往往变得接近对方。(3)随着$\alpha_i$值的增大，每个协议的检测时间随之增大，因为一个较大的$\alpha_i$ 表示对检测精度要求更严格。
+\begin{asparaenum}
+\item MMTD协议是所有协议中丢失标签检测效率最高的，例如，当$\alpha_i=0.99$，SMTD+CC的执行时间为$92.9s$，然而MMTD只有$37.7s$，即MMTD的执行速度是SMTD+CC协议$2.4$倍；
+\item当所需检测精度$\alpha_i$较高时，除ESSDA和MMTD 协议外，其他协议执行时间明显增加，原因是MMTD和ESSDA协议执行的轮数受$\alpha_i$影响较小。
+\end{asparaenum}
+
+
+%在本小节中，我们比较了动态标签识别协议和现有协议CA、CU+IIP和ACOS+IIP在不同场景下的时间开销。我们分别研究了$|\mathcal{S}_{i}|$、 现有标签数量$|\mathcal{S}_{i}|$、 以及原有标签比例$|\mathcal{O}|/|\mathcal{S}_{i}|$ 对协议执行时间的影响。
+%
+%\begin{figure}[t]
+%    \setlength{\abovecaptionskip}{0pt}
+%    \setlength{\belowcaptionskip}{0pt}
+%  \centering
+%  \includegraphics[width=1\textwidth]{fcs/time_current_fcs}
+%  \bicaption[time-current-overhead-fcs]{}{$|\mathcal{S}_{i}|$ = 5,000,$|\mathcal{S}_{i+1}|$ 从5,000 变到10,000时，各协议的时间开销比较}{Fig.}{Time overhead comparison when $|\mathcal{S}_{i}|$ = 5,000 and $|\mathcal{S}_{i+1}|$ varies from 5,000 to 10,000}
+%\end{figure}
+%
+%首先，我们设定历史标签数量$|\mathcal{S}_{i}|=5,000$，并通过仿真模拟各协议在不同数目的现有标签$|\mathcal{S}_{i+1}|$和新增标签$|\mathcal{U}|$组合下的性能。我们分别模拟了现有标签数目$|\mathcal{S}_{i}|$为5,000、7,500、以及10,000 的情况，以及原有标签数目和历史标签数目比值$|\mathcal{O}|/|\mathcal{S}_{i}|$ 为$0.1$、$0.5$和$0.9$的三种情况。一共得到了9组实验结果。如图\ref{time-current-overhead-fcs}所示，在所有的场景下，FCS的时间开销明显小于CA、CU+IIP以及ACOS+IIP 的时间开销。与CU+IIP 相比，FCS节约了$60.1\%\sim 83.1\%$ 的时间，与ACOS+IIP相比，节约了$39.3\% \sim58.5\%$的执行时间。例如，当$|\mathcal{O}|/|\mathcal{S}_{i}|=0.1，|\mathcal{S}_{i+1}|=10,000$时，CU+IIP、 CA以及ACOS+IIP 的执行时间分别为$96.05$秒、$57.06$ 秒、和$71.78$秒， 与此同时，FCS的执行时间只有37.41秒。这主要是因为FCS结合了多类过滤器技术和时隙监控技术，能够以较快的速度完成标签分类。所有协议的执行时间都随着现有标签数目$|\mathcal{S}_{i}|$ 的增加而增加，因为更多的现有标签会造成更多的冲突，同时也意味着更多的新增标签需要被识别，两者皆导致时间开销的增长。
+%
+%
+%
+%此外，我们发现FCS协议的时间开销对原有标签比例$|\mathcal{O}|/|\mathcal{S}_{i}|$ 较为敏感。当$|\mathcal{O}|/|\mathcal{S}_{i}|$ 较大时，FCS 协议的执行时间显著减少。例如，当$|\mathcal{S}_{i+1}|=5,000,|\mathcal{O}|/|\mathcal{S}_{i}|=0.1$ 时，FCS 的时间开销约为$37.41$秒，而当$|\mathcal{O}|/|\mathcal{S}_{i}|=0.9$ 时，FCS的时间开销减少到$23.52$秒，约为原来的$62.7\%$。这主要是因为当原有标签数目较大时$|\mathcal{O}|$， FCS协议通过标记静默与哪有标签，能够以更高的效率排除原有标签对动态标签识别的干扰，从而更快的发现和标记丢失标签和新增标签。于此同时，CA协议的执行时间基本保持稳定，不受$|\mathcal{O}|/|\mathcal{S}_{i}|$ 的影响，因为CA会识别所有现有标签，因此其时间开销只现有标签数目$|\mathcal{S}_{i+1}|$有关。
+%
+%\begin{figure}[t]
+%    \setlength{\abovecaptionskip}{0pt}
+%    \setlength{\belowcaptionskip}{0pt}
+%  \centering
+%  \includegraphics[width=1\textwidth]{fcs/time_history_fcs}
+%  \bicaption[time-history-overhead-fcs]{}{$|\mathcal{S}_{i+1}|$ = 10,000， $|\mathcal{S}_{i}|$ 从5,000 变到10,000时，各协议的时间开销比较}{Fig.}{Time overhead comparison when $|\mathcal{S}_{i+1}|$ = 5,000 and $|\mathcal{S}_{i}|$ varies from 5,000 to 10,000}
+%\end{figure}
+%
+%接下来，我们设定现有标签数量$|\mathcal{S}_{i+1}|=10,000$，然后从$5,000$到$10,000$变化历史标签数量$|\mathcal{S}_{i}|$。图\ref{time-history-overhead-fcs}中的实验结果表明与CU+IIP以及ACOS 相比，FCS能分别节约$59\%$和$41\%$的时间开销。例如，当
+%$|\mathcal{S}_{i}|=7,500, |\mathcal{O}|/|\mathcal{S}_{i}|=0.9$ 时，CU+IIP、CA、ACOS+IIP以及FCS协议的执行时间分别为$49.95$ 秒、$42.86$ 秒、$28.78$秒和$14.58$秒。
+%%
+%经过分析可知，与现有协议相比，FCS 能够提升至少提升$40\%$的时间效率。这主要是因为FCS采用了更加高效的标签分类方法。
+%%
+%此外，在新增标签较多的时候，FCS比CU以及ACOS有着更好的性能，这是因为FCS采用的新增标签识别协议比CU以及ACOS 中采用的冲突避免协议效率更高。
+
+
+
+\section{本章小结}\label{Conclusion_Identification}
+\esection{Chapter Conclusion}
+本章专注研究多阅读器多类别RFID系统丢失标签检测问题，并提出了消除R2Rc影响和任务分摊的MMTD协议。MMTD协议侦测阅读器间的冲突关系，运用贪心算法划分阅读器分组避免R2Rc带来的标签识别失败的影响，检测每个标签类别在监控范围内的分布状态，并利用每个阅读器对监控范围内各个标签类别的数量估值差异化设置阅读器的广播时间帧大小，利用优化的广播时间帧并行检测每个标签类别的丢失标签状况。MMTD把繁重的检测任务划分为多个轻量级检测任务，缩小了广播帧长，大幅提升了丢失标签检测效率。
+
+
+
+

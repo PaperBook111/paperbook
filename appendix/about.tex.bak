@@ -1,0 +1,49 @@
+\chapter*{\hfill 作者简介 \hfill}
+\addcontentsline{toc}{chapter}{作者简介}
+\addcontentsline{toe}{chapter}{Author Introduction}
+
+\begin{window}[0,r,{\mbox{\includegraphics[width=3.5cm]{xinxie.jpg}}},{}]
+\end{window}
+\daxiaosi
+\textbf{姓名：}郭凯敏
+
+\textbf{性别：}男
+
+\textbf{出生年月：}1988~年~01~月
+
+\textbf{民族：}汉
+
+\textbf{籍贯：}河南省周口市
+
+\textbf{研究方向：}射频识别技术理论
+
+\textbf{教育背景：}
+
+\xiaosi
+$\cdot$ 2009.09-2013.07 \ \ 东北农业大学电气与信息学院  \ \ 本科
+
+$\cdot$ 2013.09-2016.07    \ \ 东北农业大学电气与信息学院    \ \  硕士（导师：崔天时副教授）
+
+$\cdot$ 2016.09-至今  \ \ 大连理工大学计算机科学与技术学院 \ \    博士（导师：李克秋教授）
+
+
+
+%\daxiaosi
+%\textbf{曾获奖励：}
+
+%\xiaosi
+%$\cdot$ 大连市优秀毕业生，2018
+
+%$\cdot$ 大连理工大学优秀博士学位论文单项奖学金，2018
+
+%$\cdot$ 博士研究生国家奖学金，2017
+
+%$\cdot$ 大连理工大学优秀研究生，2017
+
+%$\cdot$ 辽宁省优秀毕业生，2013
+
+
+
+
+
+

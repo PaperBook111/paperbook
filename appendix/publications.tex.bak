@@ -1,0 +1,28 @@
+\chapter*{\hfill 攻读博士学位期间科研项目及科研成果 \hfill}
+\addcontentsline{toc}{chapter}{攻读博士学位期间发表学术论文情况}
+\addcontentsline{toe}{chapter}{Achievements}
+
+\renewcommand{\labelenumi}{[\arabic{enumi}]}
+
+
+\section*{发表的学术论文：}
+\begin{enumerate}
+\item Xiulong Liu, \textbf{Kaimin Guo}, Zijuan Liu, Xiaobo Zhou, Heng Qi and Weilian Xue, Fast and accurate missing tag detection for multi-category RFID systems, In Proceeding of the 2018 IEEE International Conference on Smart Internet of Things (SmartIoT 2018). [EI, CCF C]~~~(\textbf{本学位论文第二章})
+\item \textbf{Kaimin Guo}, Xin Xie, Heng Qi and Keqiu Li, A priority-based tag identification protocol for the large-scale RFID system, IEEE Wireless Communications Letters [J],2021,10(12): 2772-2775.[SCI, IF:5.281, Q1] (\textbf{本学位论文第三章})
+\item \textbf{Kaimin Guo}, Xin Xie, Heng Qi and Keqiu Li, A high time-efficient missing tag detection scheme for integrated RFID systems, Sensors [J],2022,22(12): 4601.[SCI, IF:3.847, Q2,] (\textbf{本学位论文第三章})
+\item \textbf{Kaimin Guo}, Xin Xie, Sheng Chen, Heng Qi and Keqiu Li, Efficient Collision-slot Utilization for Missing Tags Identification in RFID System, Computer Communications, in press.[SCI, IF:5.047, Q1](\textbf{本学位论文第二章})
+\item \textbf{郭凯敏}，谢鑫，马一杰，齐恒，李克秋，大型RFID系统中未知标签的快速可靠识别，计算机工程，排版中[北大核心](\textbf{本学位论文第二章})
+
+
+%\item \textbf{Xin Xie}, Xiulong Liu, Keqiu Li, Bin Xiao and Heng Qi, Minimal Perfect Hashing-based Information Collection Protocol for RFID systems, IEEE Trans. on Mobile Computing [J],2017,16(10):2792–2805.[SCI, IF:4.098, Q1, CCF A] (\textbf{本学位论文第三章})
+%
+%\item \textbf{Xin Xie}, Xiulong Liu, Keqiu Li, Geyong Min and Weilian Xue, Fast temporal continuous scanning in RFID systems, Elsevier Computer Communications [J],2017,106: 46-56.[SCI, IF:2.613, Q2, CCF C] (\textbf{本学位论文第二章})
+%
+%\item \textbf{Xin Xie}, Xiulong Liu, Heng Qi and Keqiu Li, Fast Identification of Multi-Tagged Objects for Large-scale RFID systems, IEEE Wireless Communications Letters, in press.[SCI, IF:3.096, Q1](\textbf{本学位论文第二章})
+%
+%\item \textbf{Xin Xie}, Xiulong Liu, Keqiu Li, Weilian Xue, Bin Xiao and Heng Qi, Fast Collection of Data in Sensor-Augmented RFID Networks, In Proceeding of the 13th IEEE International Conference on Sensing, Communication and Networking(SECON 2016). [EI, CCF B]~~~ (\textbf{本学位论文第三章})
+%
+%\item \textbf{Xin Xie}, Keqiu Li and Xiulong Liu, An unknown tag identification protocol based on coded filtering vector in large scale RFID systems, In Proceeding of the 23rd International Conference on Computer Communications and Networks (ICCCN 2014). [EI, CCF C]~~~(\textbf{本学位论文第二章})
+
+\end{enumerate}
+
